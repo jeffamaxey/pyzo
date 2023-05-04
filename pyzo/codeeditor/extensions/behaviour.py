@@ -58,7 +58,7 @@ class MoveLinesUpDown(object):
         pos1 = cursor.position()
 
         # Move up/down
-        other = [cursor.NextBlock, cursor.PreviousBlock][int(bool(key == Qt.Key_Up))]
+        other = [cursor.NextBlock, cursor.PreviousBlock][int(key == Qt.Key_Up)]
         cursor.movePosition(other, cursor.MoveAnchor)
 
         # Select text of other block
@@ -206,29 +206,27 @@ class Indentation(object):
         modifiers = event.modifiers()
         # Tab key
         if key == Qt.Key_Tab:
-            if modifiers == Qt.NoModifier:
-                if (
-                    self.textCursor().hasSelection()
-                ):  # Tab pressed while some area was selected
-                    self.indentSelection()
-                    return
-                elif self.__cursorIsInLeadingWhitespace():
-                    # If the cursor is in the leading whitespace, indent and move cursor to end of whitespace
-                    cursor = self.textCursor()
-                    self.indentBlock(cursor)
-                    self.setTextCursor(cursor)
-                    return
-
-                elif self.indentUsingSpaces():
-                    # Insert space-tabs
-                    cursor = self.textCursor()
-                    w = self.indentWidth()
-                    cursor.insertText(" " * (w - ((cursor.positionInBlock() + w) % w)))
-                    return
-                # else: default behaviour, insert tab character
-            else:  # Some other modifiers + Tab: ignore
+            if modifiers != Qt.NoModifier:
                 return
 
+            if (
+                self.textCursor().hasSelection()
+            ):  # Tab pressed while some area was selected
+                self.indentSelection()
+                return
+            elif self.__cursorIsInLeadingWhitespace():
+                # If the cursor is in the leading whitespace, indent and move cursor to end of whitespace
+                cursor = self.textCursor()
+                self.indentBlock(cursor)
+                self.setTextCursor(cursor)
+                return
+
+            elif self.indentUsingSpaces():
+                # Insert space-tabs
+                cursor = self.textCursor()
+                w = self.indentWidth()
+                cursor.insertText(" " * (w - ((cursor.positionInBlock() + w) % w)))
+                return
         # If backspace is pressed in the leading whitespace, (except for at the first
         # position of the line), and there is no selection
         # dedent that line and move cursor to end of whitespace
@@ -328,10 +326,7 @@ class PythonAutoIndent(object):
                         (CommentToken, UnterminatedStringToken, BlockState),
                     ):
                         # TODO: check correct identation (no mixed space/tabs)
-                        if self.indentUsingSpaces():
-                            indent += " " * self.indentWidth()
-                        else:
-                            indent += "\t"
+                        indent += " " * self.indentWidth() if self.indentUsingSpaces() else "\t"
                 cursor.insertText(indent)
                 # This prevents jump to start of line when up key is pressed
                 self.setTextCursor(cursor)
@@ -461,22 +456,22 @@ class SmartCopyAndPaste(object):
         # to ensure we don't count it as multi-line if the cursor
         # is just at the beginning of the next block (consistent with
         # 'CodeEditor.doForSelectedLines')
-        if cursor.selectionEnd() > block.position() + block.length():
+        if (
+            cursor.selectionEnd() > block.position() + block.length()
+            and len(block.text()[: cursor.positionInBlock()].strip()) == 0
+        ):
+            # Note that this 'smart pasting' will be a separate item on the
+            # undo stack. This is intentional: the user can undo the 'smart paste'
+            # without undoing the paste
+            cursor2 = QtGui.QTextCursor(cursor)
+            cursor2.setPosition(
+                cursor2.position()
+            )  # put the anchor where the cursor is
 
-            # Now, check if in front of the current selection there is only whitespace
-            if len(block.text()[: cursor.positionInBlock()].strip()) == 0:
-                # Note that this 'smart pasting' will be a separate item on the
-                # undo stack. This is intentional: the user can undo the 'smart paste'
-                # without undoing the paste
-                cursor2 = QtGui.QTextCursor(cursor)
-                cursor2.setPosition(
-                    cursor2.position()
-                )  # put the anchor where the cursor is
-
-                # Move cursor2 to beginning of the line (selecting the whitespace)
-                # and remove the selection
-                cursor2.movePosition(cursor2.StartOfBlock, cursor2.KeepAnchor)
-                cursor2.removeSelectedText()
+            # Move cursor2 to beginning of the line (selecting the whitespace)
+            # and remove the selection
+            cursor2.movePosition(cursor2.StartOfBlock, cursor2.KeepAnchor)
+            cursor2.removeSelectedText()
 
         # Set the textcursor of this editor to the just-pasted selection
         if keepSelection:
@@ -501,7 +496,7 @@ class AutoCloseQuotesAndBrackets(object):
             if hasattr(token, "start"):
                 if token.start >= pos:
                     break
-            elif getattr(token, "state", 0) in (1, 2):
+            elif getattr(token, "state", 0) in {1, 2}:
                 token = MultilineStringToken()  # 1 and 2 are mls, by convention, sortof
         return token
 
@@ -559,7 +554,7 @@ class AutoCloseQuotesAndBrackets(object):
                     cursor.insertText(char)  # == super().keyPressEvent(event)
                 else:
                     # Auto-close bracket
-                    insert_txt = "{}{}".format(openBrackets[idx], closeBrackets[idx])
+                    insert_txt = f"{openBrackets[idx]}{closeBrackets[idx]}"
                     cursor.insertText(insert_txt)
                     self._moveCursorLeft(1)
 
@@ -576,7 +571,6 @@ class AutoCloseQuotesAndBrackets(object):
                     # Normal
                     cursor.insertText(char)  # == super().keyPressEvent(event)
 
-        # quotes
         elif char in quotes and pyzo.config.settings.autoClose_Quotes:
             next_char = self.__getNextCharacter()
 
@@ -628,7 +622,6 @@ class AutoCloseQuotesAndBrackets(object):
                 #         edit_cursor.insertText(char * 2)
                 #         self._moveCursorLeft(2)
 
-        # remove whole couple of brackets when hitting backspace
         elif (
             event.key() == Qt.Key_Backspace and pyzo.config.settings.autoClose_Brackets
         ):
@@ -648,13 +641,15 @@ class AutoCloseQuotesAndBrackets(object):
                 prev_char = self.__getPreviousCharacter()
                 next_char = self.__getNextCharacter()
 
-                if prev_char == "(" and next_char == ")":
+                if (
+                    prev_char == "("
+                    and next_char == ")"
+                    or prev_char == "["
+                    and next_char == "]"
+                    or prev_char == "{"
+                    and next_char == "}"
+                ):
                     cursor.deleteChar()
-                elif prev_char == "[" and next_char == "]":
-                    cursor.deleteChar()
-                elif prev_char == "{" and next_char == "}":
-                    cursor.deleteChar()
-
                 super().keyPressEvent(event)
 
         else:
@@ -664,15 +659,13 @@ class AutoCloseQuotesAndBrackets(object):
         cursor = self.textCursor()
         cursor.movePosition(cursor.NoMove, cursor.MoveAnchor)  # rid selection
         cursor.movePosition(cursor.NextCharacter, cursor.KeepAnchor)
-        next_char = cursor.selectedText()
-        return next_char
+        return cursor.selectedText()
 
     def __getPreviousCharacter(self):
         cursor = self.textCursor()
         cursor.movePosition(cursor.NoMove, cursor.MoveAnchor)  # rid selection
         cursor.movePosition(cursor.PreviousCharacter, cursor.KeepAnchor)
-        previous_char = cursor.selectedText()
-        return previous_char
+        return cursor.selectedText()
 
     def _moveCursorLeft(self, n):
         """

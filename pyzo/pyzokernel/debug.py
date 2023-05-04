@@ -79,10 +79,7 @@ class Debugger(bdb.Bdb):
 
         # Let the IDE know (
         # "self._debugmode = 1 if pm else 2" does not work not on py2.4)
-        if pm:
-            self._debugmode = 1
-        else:
-            self._debugmode = 2
+        self._debugmode = 1 if pm else 2
         self.writestatus()
 
         # Enter interact loop. We may hang in here for a while ...
@@ -131,7 +128,7 @@ class Debugger(bdb.Bdb):
 
     def error(self, msg):
         """method used in some code that we copied from pdb."""
-        raise self.message("*** " + msg)
+        raise self.message(f"*** {msg}")
 
     def writestatus(self):
         """Write the debug status so the IDE can take action."""
@@ -174,8 +171,7 @@ class Debugger(bdb.Bdb):
 
     # Prevent stopping in bdb code or pyzokernel code
     def stop_here(self, frame):
-        result = bdb.Bdb.stop_here(self, frame)
-        if result:
+        if result := bdb.Bdb.stop_here(self, frame):
             return ("bdb.py" not in frame.f_code.co_filename) and (
                 "pyzokernel" not in frame.f_code.co_filename
             )
@@ -194,7 +190,7 @@ class Debugger(bdb.Bdb):
             bplist = [bp for bp in bdb.Breakpoint.bpbynumber if bp]
             self.clear_all_breaks()
             for bp in bplist:
-                self.message("Deleted %s" % bp)
+                self.message(f"Deleted {bp}")
             return
         if ":" in arg:
             # Make sure it works for "clear C:\foo\bar.py:12"
@@ -204,7 +200,7 @@ class Debugger(bdb.Bdb):
             try:
                 lineno = int(arg)
             except ValueError:
-                err = "Invalid line number (%s)" % arg
+                err = f"Invalid line number ({arg})"
             else:
                 bplist = self.get_breaks(filename, lineno)
                 err = self.clear_break(filename, lineno)
@@ -212,7 +208,7 @@ class Debugger(bdb.Bdb):
                 self.error(err)
             else:
                 for bp in bplist:
-                    self.message("Deleted %s" % bp)
+                    self.message(f"Deleted {bp}")
             return
         numberlist = arg.split()
         for i in numberlist:
@@ -222,7 +218,7 @@ class Debugger(bdb.Bdb):
                 self.error("Cannot get breakpoint by number.")
             else:
                 self.clear_bpbynumber(i)
-                self.message("Deleted %s" % bp)
+                self.message(f"Deleted {bp}")
 
     def user_call(self, frame, argument_list):
         """This method is called when there is the remote possibility
@@ -242,8 +238,7 @@ class Debugger(bdb.Bdb):
             ):
                 return
             self._wait_for_mainpyfile = False
-        if True:  # self.bp_commands(frame):  from pdb
-            self.interaction(frame, None)
+        self.interaction(frame, None)
 
     def user_return(self, frame, return_value):
         """This function is called when a return trap is set here."""
@@ -271,8 +266,7 @@ class Debugger(bdb.Bdb):
         docs = {}
         for name in dir(self):
             if name.startswith("do_"):
-                doc = getattr(self, name).__doc__
-                if doc:
+                if doc := getattr(self, name).__doc__:
                     docs[name[3:]] = doc.strip()
 
         if not arg:
@@ -293,21 +287,21 @@ class Debugger(bdb.Bdb):
             ]:
                 doc = docs.pop(name)
                 name = name.rjust(10)
-                print(" %s - %s" % (name, doc))
+                print(f" {name} - {doc}")
             # Show rest
             for name in docs:
                 doc = docs[name]
                 name = name.rjust(10)
-                print(" %s - %s" % (name, doc))
+                print(f" {name} - {doc}")
 
         else:
             # Show specific doc
             name = arg.lower()
             doc = docs.get(name, None)
             if doc is not None:
-                print("%s - %s" % (name, doc))
+                print(f"{name} - {doc}")
             else:
-                print("Unknown debug command: %s" % name)
+                print(f"Unknown debug command: {name}")
 
     def do_start(self, arg):
         """Start postmortem debugging from the last uncaught exception."""
@@ -334,11 +328,11 @@ class Debugger(bdb.Bdb):
 
     def do_frame(self, arg):
         """Go to the i'th frame in the stack."""
-        interpreter = sys._pyzoInterpreter
-
         if not self._debugmode:
             self.message("Not in debug mode.")
         else:
+            interpreter = sys._pyzoInterpreter
+
             # Set frame index
             interpreter._dbFrameIndex = int(arg)
             if interpreter._dbFrameIndex < 1:
@@ -354,15 +348,14 @@ class Debugger(bdb.Bdb):
 
     def do_up(self, arg):
         """Go one frame up the stack."""
-        interpreter = sys._pyzoInterpreter
-
         if not self._debugmode:
             self.message("Not in debug mode.")
         else:
+            interpreter = sys._pyzoInterpreter
+
             # Decrease frame index
             interpreter._dbFrameIndex -= 1
-            if interpreter._dbFrameIndex < 1:
-                interpreter._dbFrameIndex = 1
+            interpreter._dbFrameIndex = max(interpreter._dbFrameIndex, 1)
             # Set name and locals
             frame = interpreter._dbFrames[interpreter._dbFrameIndex - 1]
             interpreter._dbFrameName = frame.f_code.co_name
@@ -372,15 +365,16 @@ class Debugger(bdb.Bdb):
 
     def do_down(self, arg):
         """Go one frame down the stack."""
-        interpreter = sys._pyzoInterpreter
-
         if not self._debugmode:
             self.message("Not in debug mode.")
         else:
+            interpreter = sys._pyzoInterpreter
+
             # Increase frame index
             interpreter._dbFrameIndex += 1
-            if interpreter._dbFrameIndex > len(interpreter._dbFrames):
-                interpreter._dbFrameIndex = len(interpreter._dbFrames)
+            interpreter._dbFrameIndex = min(
+                interpreter._dbFrameIndex, len(interpreter._dbFrames)
+            )
             # Set name and locals
             frame = interpreter._dbFrames[interpreter._dbFrameIndex - 1]
             interpreter._dbFrameName = frame.f_code.co_name
@@ -399,12 +393,12 @@ class Debugger(bdb.Bdb):
 
     def do_where(self, arg):
         """Print the stack trace and indicate the current frame."""
-        interpreter = sys._pyzoInterpreter
-
         if not self._debugmode:
             self.message("Not in debug mode.")
         else:
             lines = []
+            interpreter = sys._pyzoInterpreter
+
             for i in range(len(interpreter._dbFrames)):
                 frameIndex = i + 1
                 f = interpreter._dbFrames[i]
@@ -442,26 +436,26 @@ class Debugger(bdb.Bdb):
 
     def do_next(self, arg):
         """Continue execution until the next line (step over)."""
-        interpreter = sys._pyzoInterpreter
-
         if self._debugmode == 0:
             self.message("Not in debug mode.")
         elif self._debugmode == 1:
             self.message("Cannot use 'next' in postmortem debug mode.")
         else:
+            interpreter = sys._pyzoInterpreter
+
             frame = interpreter._dbFrames[-1]
             self.set_next(frame)
             self.stopinteraction()
 
     def do_return(self, arg):
         """Continue execution until the current function returns (step out)."""
-        interpreter = sys._pyzoInterpreter
-
         if self._debugmode == 0:
             self.message("Not in debug mode.")
         elif self._debugmode == 1:
             self.message("Cannot use 'return' in postmortem debug mode.")
         else:
+            interpreter = sys._pyzoInterpreter
+
             frame = interpreter._dbFrames[-1]
             self.set_return(frame)
             self.stopinteraction()

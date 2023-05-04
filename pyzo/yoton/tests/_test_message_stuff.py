@@ -8,7 +8,7 @@ class Message(str):
 # Create loads of messages of pure strings and Message instances with an attr
 L1, L2 = [], []
 for i in range(100000):
-    text = "blabla" + str(i)
+    text = f"blabla{str(i)}"
     tmp = Message(text)
     tmp._seq = i
     L1.append(text)

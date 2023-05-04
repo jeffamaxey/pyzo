@@ -161,7 +161,7 @@ def unwrapText(text):
 
     # Remove double/triple/etc spaces
     text = text.lstrip()
-    for i in range(10):
+    for _ in range(10):
         text = text.replace("  ", " ")
 
     # Convert \\r newlines
@@ -208,11 +208,7 @@ class Menu(QtWidgets.QMenu):
         self._groups = {}
 
         # menuPath is used to bind shortcuts, it is ,e.g. shell__clear_screen
-        if hasattr(parent, "menuPath"):
-            self.menuPath = parent.menuPath + "__"
-        else:
-            self.menuPath = ""  # This is a top-level menu
-
+        self.menuPath = f"{parent.menuPath}__" if hasattr(parent, "menuPath") else ""
         # Get key for this menu
         key = name
         if hasattr(name, "key"):
@@ -232,7 +228,7 @@ class Menu(QtWidgets.QMenu):
         # replace invalid chars
         name = name.replace(" ", "_")
         if name and name[0] in "0123456789_":
-            name = "_" + name
+            name = f"_{name}"
         name = re.sub("[^a-zA-z_0-9]", "", name)
         return name.lower()
 
@@ -240,11 +236,7 @@ class Menu(QtWidgets.QMenu):
         """Convenience function that makes the right call to addAction()."""
 
         # Add the action
-        if icon is None:
-            a = self.addAction(text)
-        else:
-            a = self.addAction(icon, text)
-
+        a = self.addAction(text) if icon is None else self.addAction(icon, text)
         # Checkable?
         if selected is not None:
             a.setCheckable(True)
@@ -259,7 +251,7 @@ class Menu(QtWidgets.QMenu):
         key = a.text()
         if hasattr(text, "key"):
             key = text.key
-        a.menuPath = self.menuPath + "__" + self._createMenuPathName(key)
+        a.menuPath = f"{self.menuPath}__{self._createMenuPathName(key)}"
 
         # Register the action so its keymap is kept up to date
         pyzo.keyMapper.keyMappingChanged.connect(lambda: pyzo.keyMapper.setShortcut(a))
@@ -584,10 +576,7 @@ class FileMenu(Menu):
             # Update indentation
             self._indentMenu.setCheckedOption("style", editor.indentUsingSpaces())
             self._indentMenu.setCheckedOption("width", editor.indentWidth())
-            # Update parser
-            parserName = "Plain"
-            if editor.parser():
-                parserName = editor.parser().name() or "Plain"
+            parserName = editor.parser().name() or "Plain" if editor.parser() else "Plain"
             self._parserMenu.setCheckedOption(None, parserName)
             # Update line ending
             self._lineEndingMenu.setCheckedOption(None, editor.lineEndingsHumanReadable)
@@ -633,7 +622,7 @@ class FileMenu(Menu):
         for encoding in encodings:
             encodingValues.append(encoding)
             if encoding in D:
-                name = "%s (%s)" % (encoding, ", ".join(D[encoding]))
+                name = f'{encoding} ({", ".join(D[encoding])})'
                 encodingNames.append(name)
             else:
                 encodingNames.append(encoding)
@@ -845,8 +834,7 @@ class ZoomMenu(Menu):
             pyzo.config.view.zoom = editor.setZoom(pyzo.config.view.zoom)
         for shell in pyzo.shells:
             pyzo.config.view.zoom = shell.setZoom(pyzo.config.view.zoom)
-        logger = pyzo.toolManager.getTool("pyzologger")
-        if logger:
+        if logger := pyzo.toolManager.getTool("pyzologger"):
             logger.updateZoom()
 
 
@@ -861,7 +849,7 @@ class FontMenu(Menu):
         names = pyzo.codeeditor.Manager.fontNames()
         defaultName = "DejaVu Sans Mono"
         for name in sorted(names):
-            default_suffix = " (%s)" % translate("menu", "default")
+            default_suffix = f' ({translate("menu", "default")})'
             txt = name + default_suffix if name == defaultName else name
             self.addGroupItem(txt, None, self._selectFont, value=name)
         # Select the current one
@@ -874,8 +862,7 @@ class FontMenu(Menu):
             editor.setFont(pyzo.config.view.fontname)
         for shell in pyzo.shells:
             shell.setFont(pyzo.config.view.fontname)
-        logger = pyzo.toolManager.getTool("pyzologger")
-        if logger:
+        if logger := pyzo.toolManager.getTool("pyzologger"):
             logger.updateFont()
 
 
@@ -892,7 +879,7 @@ class ViewMenu(Menu):
             "Location of long line indicator ::: The location of the long-line-indicator.",
         )
         self._edgeColumMenu = GeneralOptionsMenu(self, t, self._setEdgeColumn)
-        values = [0] + [i for i in range(60, 130, 10)]
+        values = [0] + list(range(60, 130, 10))
         names = [translate("menu", "None")] + [str(i) for i in values[1:]]
         self._edgeColumMenu.setOptions(names, values)
         self._edgeColumMenu.setCheckedOption(None, pyzo.config.view.edgeColumn)
@@ -900,13 +887,12 @@ class ViewMenu(Menu):
         # Create qt theme menu
         t = translate("menu", "Qt theme ::: The styling of the user interface widgets.")
         self._qtThemeMenu = GeneralOptionsMenu(self, t, self._setQtTheme)
-        styleNames = list(QtWidgets.QStyleFactory.keys())
-        styleNames.sort()
-        titles = [name for name in styleNames]
+        styleNames = sorted(QtWidgets.QStyleFactory.keys())
+        titles = list(styleNames)
         styleNames = [name.lower() for name in styleNames]
         for i in range(len(titles)):
             if titles[i].lower() == pyzo.defaultQtStyleName.lower():
-                titles[i] += " (%s)" % translate("menu", "default")
+                titles[i] += f' ({translate("menu", "default")})'
         self._qtThemeMenu.setOptions(titles, styleNames)
         self._qtThemeMenu.setCheckedOption(None, pyzo.config.view.qtstyle.lower())
 
@@ -1042,7 +1028,7 @@ class ViewMenu(Menu):
         # Store this parameter in the config
         setattr(pyzo.config.view, param, state)
         # Apply to all editors, translate e.g. showWhitespace to setShowWhitespace
-        setter = "set" + param[0].upper() + param[1:]
+        setter = f"set{param[0].upper()}{param[1:]}"
         for editor in pyzo.editors:
             getattr(editor, setter)(state)
         if shellsToo:
@@ -1050,13 +1036,11 @@ class ViewMenu(Menu):
                 getattr(shell, setter)(state)
 
     def _selectShell(self):
-        shell = pyzo.shells.getCurrentShell()
-        if shell:
+        if shell := pyzo.shells.getCurrentShell():
             shell.setFocus()
 
     def _selectEditor(self):
-        editor = pyzo.editors.getCurrentEditor()
-        if editor:
+        if editor := pyzo.editors.getCurrentEditor():
             editor.setFocus()
 
     def _setEdgeColumn(self, value):
@@ -1347,10 +1331,7 @@ class ShellMenu(Menu):
             self._shellCreateActions.append(action)
 
     def _updateDebugButtons(self):
-        # Count breakpoints
-        bpcount = 0
-        for e in pyzo.editors:
-            bpcount += len(e.breakPoints())
+        bpcount = sum(len(e.breakPoints()) for e in pyzo.editors)
         self._debug_clear.setText(self._debug_clear_text.format(bpcount))
         # Determine state of PM and clear button
         debugmode = pyzo.shells._debugmode
@@ -1360,14 +1341,12 @@ class ShellMenu(Menu):
 
     def _shellAction(self, action):
         """Call the method specified by 'action' on the current shell."""
-        shell = self.getShell()
-        if shell:
+        if shell := self.getShell():
             # Call the specified action
             getattr(shell, action)()
 
     def _debugAction(self, action):
-        shell = self.getShell()
-        if shell:
+        if shell := self.getShell():
             # Call the specified action
             command = action.upper()
             shell.executeCommand("DB %s\n" % command)
@@ -1510,9 +1489,8 @@ class ShellContextMenu(ShellMenu):
             if curdir and fileBrowser:
                 fileBrowser.setPath(curdir)
         elif action == "changedir":
-            fileBrowser = pyzo.toolManager.getTool("pyzofilebrowser")
-            if fileBrowser:
-                self._shell.executeCommand("cd " + fileBrowser.path() + "\n")
+            if fileBrowser := pyzo.toolManager.getTool("pyzofilebrowser"):
+                self._shell.executeCommand(f"cd {fileBrowser.path()}" + "\n")
         elif action == "changedirtoeditor":
             msg = ""
             editor = pyzo.editors.getCurrentEditor()
@@ -1526,9 +1504,7 @@ class ShellContextMenu(ShellMenu):
                 m.setIcon(m.Warning)
                 m.exec_()
             else:
-                self._shell.executeCommand(
-                    "cd " + os.path.dirname(editor.filename) + "\n"
-                )
+                self._shell.executeCommand(f"cd {os.path.dirname(editor.filename)}" + "\n")
         elif action == "helpOnText":
             self._shell.helpOnText(self._pos)
         else:
@@ -1695,8 +1671,7 @@ class EditorContextMenu(Menu):
     def _editItemCallback(self, action):
         # If the widget has a 'name' attribute, call it
         if action == "opendir":
-            fileBrowser = pyzo.toolManager.getTool("pyzofilebrowser")
-            if fileBrowser:
+            if fileBrowser := pyzo.toolManager.getTool("pyzofilebrowser"):
                 fileBrowser.setPath(os.path.dirname(self._editor.filename))
         elif action == "helpOnText":
             self._editor.helpOnText(self._pos)
@@ -1816,7 +1791,7 @@ class EditorTabContextMenu(Menu):
 
         if action in ["saveFile", "saveFileAs", "closeFile"]:
             getattr(pyzo.editors, action)(item.editor)
-        elif action == "close_others" or action == "close_all":
+        elif action in ["close_others", "close_all"]:
             if action == "close_all":
                 item = None  # The item not to be closed is not there
             items = pyzo.editors._tabs.items()
@@ -1837,8 +1812,7 @@ class EditorTabContextMenu(Menu):
             filename = item.filename
             QtWidgets.qApp.clipboard().setText(filename)
         elif action == "opendir":
-            fileBrowser = pyzo.toolManager.getTool("pyzofilebrowser")
-            if fileBrowser:
+            if fileBrowser := pyzo.toolManager.getTool("pyzofilebrowser"):
                 fileBrowser.setPath(os.path.dirname(item.filename))
         elif action == "pin":
             item._pinned = not item._pinned
@@ -1848,12 +1822,10 @@ class EditorTabContextMenu(Menu):
             else:
                 pyzo.editors._tabs._mainFile = item.id
         elif action == "run":
-            menu = pyzo.main.menuBar().findChild(RunMenu)
-            if menu:
+            if menu := pyzo.main.menuBar().findChild(RunMenu):
                 menu._runFile((False, False), item.editor)
         elif action == "run_script":
-            menu = pyzo.main.menuBar().findChild(RunMenu)
-            if menu:
+            if menu := pyzo.main.menuBar().findChild(RunMenu):
                 menu._runFile((True, False), item.editor)
 
         pyzo.editors._tabs.updateItems()
@@ -1992,7 +1964,7 @@ class RunMenu(Menu):
         if msg:
             m = QtWidgets.QMessageBox(self)
             m.setWindowTitle(translate("menu dialog", "Could not run"))
-            m.setText(translate("menu", "Could not run " + what + ":\n\n" + msg))
+            m.setText(translate("menu", f"Could not run {what}" + ":\n\n" + msg))
             m.setIcon(m.Warning)
             m.exec_()
         # Return
@@ -2033,10 +2005,10 @@ class RunMenu(Menu):
             runCursor.movePosition(runCursor.EndOfBlock, runCursor.KeepAnchor)
         lineNumber2 = runCursor.blockNumber()
 
-        # Does this look like a statement?
-        isStatement = lineNumber1 == lineNumber2 and screenCursor.hasSelection()
-
-        if isStatement:
+        if (
+            isStatement := lineNumber1 == lineNumber2
+            and screenCursor.hasSelection()
+        ):
             # Get source code of statement
             code = screenCursor.selectedText().replace("\u2029", "\n").strip()
             # add code to history
@@ -2097,7 +2069,7 @@ class RunMenu(Menu):
         # This is the line number of the start
         lineNumber = runCursor.blockNumber()
         if len(cellName) > 20:
-            cellName = cellName[:17] + "..."
+            cellName = f"{cellName[:17]}..."
 
         # Move down until a line before one starting with'##'
         # or to end of document
@@ -2323,9 +2295,7 @@ class HelpMenu(Menu):
                 versions.append(version)
         versions.sort()
         latest_version = ".".join(str(i) for i in versions[-1]) if versions else "?"
-        # Define message
-        text = "Your version of Pyzo is: {}\n"
-        text += "Latest available version is: {}\n\n"
+        text = "Your version of Pyzo is: {}\n" + "Latest available version is: {}\n\n"
         text = text.format(pyzo.__version__, latest_version)
         text += "Do you want to open the download page?\n"
         # Show message box
@@ -2382,7 +2352,7 @@ class AutocompMenu(Menu):
         prefix = translate("menu", "Accept autocompletion with:")
         for keys, display in accept_keys:
             self.addGroupItem(
-                prefix + " " + display,
+                f"{prefix} {display}",
                 None,
                 self._setAcceptKeys,
                 keys,
@@ -2468,7 +2438,7 @@ class SettingsMenu(Menu):
         # Create language menu
         t = translate("menu", "Select language ::: The language used by Pyzo.")
         self._languageMenu = GeneralOptionsMenu(self, t, self._selectLanguage)
-        values = [key for key in sorted(LANGUAGES)]
+        values = list(sorted(LANGUAGES))
         self._languageMenu.setOptions(values, values)
         self._languageMenu.setCheckedOption(None, pyzo.config.settings.language)
 
@@ -2604,11 +2574,10 @@ class KeyMapModel(QtCore.QAbstractItemModel):
             return None
 
     def rowCount(self, parent):
-        if parent.isValid():
-            menu = parent.internalPointer()
-            return len(menu.actions())
-        else:
+        if not parent.isValid():
             return len(self._root.actions())
+        menu = parent.internalPointer()
+        return len(menu.actions())
 
     def columnCount(self, parent):
         return 4
@@ -2625,12 +2594,9 @@ class KeyMapModel(QtCore.QAbstractItemModel):
         pitem = item.parent()
         if pitem is self._root:
             return QtCore.QModelIndex()
-        else:
-            L = pitem.parent().actions()
-            row = 0
-            if pitem in L:
-                row = L.index(pitem)
-            return self.createIndex(row, 0, pitem)
+        L = pitem.parent().actions()
+        row = L.index(pitem) if pitem in L else 0
+        return self.createIndex(row, 0, pitem)
 
     def hasChildren(self, index):
         # no items have parents (except the root item)
@@ -2644,10 +2610,7 @@ class KeyMapModel(QtCore.QAbstractItemModel):
         # if not self.hasIndex(row, column, parent):
         #     return QtCore.QModelIndex()
         # establish parent
-        if not parent.isValid():
-            parentMenu = self._root
-        else:
-            parentMenu = parent.internalPointer()
+        parentMenu = parent.internalPointer() if parent.isValid() else self._root
         # produce index and make menu if the action represents a menu
         childAction = parentMenu.actions()[row]
         childMenu = childAction.parent()
@@ -2765,14 +2728,14 @@ class KeyMapLineEdit(QtWidgets.QLineEdit):
         if text:
             storeNativeKey, text0 = True, text
             if QtWidgets.qApp.keyboardModifiers() & k.AltModifier:
-                text = "Alt+" + text
+                text = f"Alt+{text}"
             if QtWidgets.qApp.keyboardModifiers() & k.ShiftModifier:
-                text = "Shift+" + text
+                text = f"Shift+{text}"
                 storeNativeKey = False
             if QtWidgets.qApp.keyboardModifiers() & k.ControlModifier:
-                text = "Ctrl+" + text
+                text = f"Ctrl+{text}"
             if QtWidgets.qApp.keyboardModifiers() & k.MetaModifier:
-                text = "Meta+" + text
+                text = f"Meta+{text}"
             self.setText(text)
             if storeNativeKey and nativekey:
                 # store native key if shift was not pressed.
@@ -2847,7 +2810,7 @@ class KeyMapEditDialog(QtWidgets.QDialog):
         # create intro to show, and store + show it
         tmp = fullname.replace("__", " -> ").replace("_", " ")
         primSec = ["secondary", "primary"][int(isprimary)]
-        self._intro = "Set the {} shortcut for:\n{}".format(primSec, tmp)
+        self._intro = f"Set the {primSec} shortcut for:\n{tmp}"
         self._label.setText(self._intro)
         # set initial value
         if fullname in pyzo.config.shortcuts2:
@@ -2891,7 +2854,7 @@ class KeyMapEditDialog(QtWidgets.QDialog):
         shortcut = self._line.text()
 
         # remove shortcut if present elsewhere
-        keys = [key for key in pyzo.config.shortcuts2]  # copy
+        keys = list(pyzo.config.shortcuts2)
         for key in keys:
             # get shortcut, test whether it corresponds with what's pressed
             shortcuts = getShortcut(key)
@@ -3168,9 +3131,8 @@ class AdvancedSettings(QtWidgets.QDialog):
                     # hide options
                     if child.text(0) in items:
                         child.setHidden(False)
-                    else:
-                        if not hasVisibleChild:
-                            child.setHidden(True)
+                    elif not hasVisibleChild:
+                        child.setHidden(True)
 
     def backupConfig(self):
         """Backup settings."""
@@ -3181,10 +3143,7 @@ class AdvancedSettings(QtWidgets.QDialog):
         lastmodified = os.stat(self.backup_file).st_mtime
         datetime.fromtimestamp(lastmodified)
 
-        backup_text = """Backup file: {}, {} """.format(
-            self.backup_file, datetime.fromtimestamp(lastmodified)
-        )
-        return backup_text
+        return f"""Backup file: {self.backup_file}, {datetime.fromtimestamp(lastmodified)} """
 
     def btnFactoryDefaultClicked(self):
         """Reset a IDE to its original settings."""
@@ -3228,16 +3187,12 @@ class AdvancedSettings(QtWidgets.QDialog):
             # change value
             if node:
                 # case: node - parent - key - value
-                if node_val in pyzo.config.keys():
-                    if (
-                        parent_val in pyzo.config[node_val].keys()
-                    ):  # bugfix +[node_val]+
-                        pyzo.config[node_val][parent_val][key] = value
-            else:
-                # case: parent - key - value
-                if parent:
-                    if parent_val in pyzo.config.keys():
-                        pyzo.config[parent_val][key] = value
+                if node_val in pyzo.config.keys() and (
+                    parent_val in pyzo.config[node_val].keys()
+                ):
+                    pyzo.config[node_val][parent_val][key] = value
+            elif parent and parent_val in pyzo.config.keys():
+                pyzo.config[parent_val][key] = value
 
             # bold changed item
             font = item.font(column)
@@ -3255,10 +3210,10 @@ class AdvancedSettings(QtWidgets.QDialog):
             if isinstance(node, pyzo.util.zon.Dict):
                 for k, v in node.items():
                     if isinstance(v, pyzo.util.zon.Dict):
-                        A = QtWidgets.QTreeWidgetItem(root, ["{}".format(str(k))])
+                        A = QtWidgets.QTreeWidgetItem(root, [f"{str(k)}"])
                         for kk, vv in v.items():
                             if isinstance(vv, pyzo.util.zon.Dict):
-                                B = QtWidgets.QTreeWidgetItem(A, ["{}".format(str(kk))])
+                                B = QtWidgets.QTreeWidgetItem(A, [f"{str(kk)}"])
                                 for kkk, vvv in vv.items():
                                     QtWidgets.QTreeWidgetItem(
                                         B, [str(kkk), str(vvv), str(type(vvv))]
@@ -3274,7 +3229,7 @@ class AdvancedSettings(QtWidgets.QDialog):
                 n = 1
                 for k in node:
                     if isinstance(k, pyzo.util.zon.Dict):
-                        A = QtWidgets.QTreeWidgetItem(root, ["shell_{}".format(str(n))])
+                        A = QtWidgets.QTreeWidgetItem(root, [f"shell_{str(n)}"])
                         for kk, vv in k.items():
                             QtWidgets.QTreeWidgetItem(
                                 A, [str(kk), str(vv), str(type(vv))]
@@ -3290,8 +3245,7 @@ class AdvancedSettings(QtWidgets.QDialog):
     def getBackupShellSettings(self):
         """Extract shell settings from backup file."""
         backup_dict = pyzo.util.zon.load(self.backup_file)
-        backup_shell = backup_dict["shellConfigs2"]
-        return backup_shell
+        return backup_dict["shellConfigs2"]
 
     def replaceShellSettings(self):
         """Replace current shell setting with backup shell settings."""

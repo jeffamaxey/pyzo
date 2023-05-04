@@ -57,11 +57,9 @@ def determineEncoding(bb):
 
             # Matches regular expression given in PEP 0263?
             expression = r"coding[:=]\s*([-\w.]+)"
-            result = re.search(expression, line)
-            if result:
-
+            if result := re.search(expression, line):
                 # Is it a known encoding? Correct name if it is
-                candidate_encoding = result.group(1)
+                candidate_encoding = result[1]
                 try:
                     c = codecs.lookup(candidate_encoding)
                     candidate_encoding = c.name
@@ -88,14 +86,11 @@ def determineLineEnding(text):
     c_lin = text.count("\n") - c_win
     # set the appropriate style
     if c_win > c_mac and c_win > c_lin:
-        mode = "\r\n"
+        return "\r\n"
     elif c_mac > c_win and c_mac > c_lin:
-        mode = "\r"
+        return "\r"
     else:
-        mode = "\n"
-
-    # return
-    return mode
+        return "\n"
 
 
 def determineIndentation(text):
@@ -116,8 +111,7 @@ def determineIndentationAndTrailingWS(text):
     text = text[:32768]  # Limit search for large files
 
     # create dictionary of indents, -1 means a tab
-    indents = {}
-    indents[-1] = 0
+    indents = {-1: 0}
     trailing = 0
 
     lines = text.splitlines()
@@ -146,22 +140,21 @@ def determineIndentationAndTrailingWS(text):
         # a colon means there will be an indent
         # check the next line (or the one thereafter)
         # and calculate the indentation difference with THIS line.
-        if line.endswith(":"):
-            if len(lines) > i + 2:
-                line2 = lines[i + 1]
+        if line.endswith(":") and len(lines) > i + 2:
+            line2 = lines[i + 1]
+            tmp = line2.lstrip()
+            if not tmp:
+                line2 = lines[i + 2]
                 tmp = line2.lstrip()
-                if not tmp:
-                    line2 = lines[i + 2]
-                    tmp = line2.lstrip()
-                if tmp:
-                    ind2 = len(line2) - len(tmp)
-                    ind3 = ind2 - indent
-                    if line2.startswith("\t"):
-                        indents[-1] += 1
-                    elif ind3 > 0:
-                        if ind3 not in indents:
-                            indents[ind3] = 1
-                        indents[ind3] += 1
+            if tmp:
+                ind2 = len(line2) - len(tmp)
+                ind3 = ind2 - indent
+                if line2.startswith("\t"):
+                    indents[-1] += 1
+                elif ind3 > 0:
+                    if ind3 not in indents:
+                        indents[ind3] = 1
+                    indents[ind3] += 1
 
     # find which was the most common tab width.
     indent, maxvotes = 0, 0
@@ -195,13 +188,13 @@ def createEditor(parent, filename=None):
         editor.removeTrailingWS = True
 
         # Set name
-        editor._name = "<tmp {}>".format(newFileCounter)
+        editor._name = f"<tmp {newFileCounter}>"
 
     else:
 
         # check and normalize
         if not os.path.isfile(filename):
-            raise IOError("File does not exist '%s'." % filename)
+            raise IOError(f"File does not exist '{filename}'.")
 
         # load file (as bytes)
         with open(filename, "rb") as f:
@@ -378,10 +371,7 @@ class PyzoEditor(BaseTextCtrl):
     def id(self):
         """Get an id of this editor. This is the filename,
         or for tmp files, the name."""
-        if self._filename:
-            return self._filename
-        else:
-            return self._name
+        return self._filename if self._filename else self._name
 
     def focusInEvent(self, event):
         """Test whether the file has been changed 'behind our back'"""
@@ -425,9 +415,6 @@ class PyzoEditor(BaseTextCtrl):
             result = dlg.exec_()
             if result == QtWidgets.QMessageBox.AcceptRole:
                 self.reload()
-            else:
-                pass  # when cancelled or explicitly said, do nothing
-
             # Return that indeed the file was changes
             return True
 
@@ -737,16 +724,11 @@ class PyzoEditor(BaseTextCtrl):
         if cto.tryUsingBuffer():
             return
 
-        # Try obtaining calltip from the source
-        sig = pyzo.parser.getFictiveSignature(cto.name, self, True)
-        if sig:
+        if sig := pyzo.parser.getFictiveSignature(cto.name, self, True):
             # Done
             cto.finish(sig)
-        else:
-            # Try the shell
-            shell = pyzo.shells.getCurrentShell()
-            if shell:
-                shell.processCallTip(cto)
+        elif shell := pyzo.shells.getCurrentShell():
+            shell.processCallTip(cto)
 
     def processAutoComp(self, aco):
         """Processes an autocomp request using an AutoCompObject instance."""
@@ -791,9 +773,7 @@ class PyzoEditor(BaseTextCtrl):
                     nameForShell = className
                     break
 
-        # If there's a shell, let it finish the autocompletion
-        shell = pyzo.shells.getCurrentShell()
-        if shell:
+        if shell := pyzo.shells.getCurrentShell():
             aco.name = nameForShell  # might be the same or a base class
             shell.processAutoComp(aco)
         else:

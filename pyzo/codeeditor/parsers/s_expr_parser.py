@@ -37,8 +37,7 @@ class SExprParser(Parser):
         """
         line = text_type(line)
 
-        if comment_level < 0:
-            comment_level = 0
+        comment_level = max(comment_level, 0)
         if comment_level > 0:
             token = CommentToken(line, 0, 0)
 
@@ -64,45 +63,42 @@ class SExprParser(Parser):
             elif comment_level > 0:
                 pos += 1
 
-            else:
-                # Outside of block comments ...
-
-                if line[pos] == ";" and pos < len(line) - 1 and line[pos + 1] == ";":
-                    yield CommentToken(line, pos, len(line))
-                    pos = len(line)
-                elif line[pos] == "(":
-                    token = OpenParenToken(line, pos, pos + 1)
-                    token._style = "("
-                    yield token
-                    pos += 1
-                elif line[pos] == ")":
-                    token = CloseParenToken(line, pos, pos + 1)
-                    token._style = ")"
-                    yield token
-                    pos += 1
-                elif line[pos] == '"':
-                    i0 = pos
-                    esc = False
-                    for i in range(i0 + 1, len(line)):
-                        if not esc and line[i] == '"':
-                            pos = i + 1
-                            yield StringToken(line, i0, pos)
-                            break
-                        esc = line[i] == "\\"
-                    else:
-                        yield UnterminatedStringToken(line, i0, len(line))
-                        pos = len(line)
+            elif line[pos] == ";" and pos < len(line) - 1 and line[pos + 1] == ";":
+                yield CommentToken(line, pos, len(line))
+                pos = len(line)
+            elif line[pos] == "(":
+                token = OpenParenToken(line, pos, pos + 1)
+                token._style = "("
+                yield token
+                pos += 1
+            elif line[pos] == ")":
+                token = CloseParenToken(line, pos, pos + 1)
+                token._style = ")"
+                yield token
+                pos += 1
+            elif line[pos] == '"':
+                i0 = pos
+                esc = False
+                for i in range(i0 + 1, len(line)):
+                    if not esc and line[i] == '"':
+                        pos = i + 1
+                        yield StringToken(line, i0, pos)
+                        break
+                    esc = line[i] == "\\"
                 else:
-                    # word: number, keyword or normal identifier
-                    i0 = pos
-                    for i in range(i0, len(line)):
-                        if line[i] in " \t\r\n)":
-                            yield self._get_token_for_word(line, i0, i)
-                            pos = i
-                            break
-                    else:
-                        pos = len(line)
-                        yield self._get_token_for_word(line, i0, len(line))
+                    yield UnterminatedStringToken(line, i0, len(line))
+                    pos = len(line)
+            else:
+                # word: number, keyword or normal identifier
+                i0 = pos
+                for i in range(i0, len(line)):
+                    if line[i] in " \t\r\n)":
+                        yield self._get_token_for_word(line, i0, i)
+                        pos = i
+                        break
+                else:
+                    pos = len(line)
+                    yield self._get_token_for_word(line, i0, len(line))
 
         if comment_level > 0:
             token.end = len(line)

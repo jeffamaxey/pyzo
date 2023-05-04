@@ -31,18 +31,14 @@ def shellTitle(shell, moreinfo=False):
     nameText = shell._info.name
 
     # Build version text
-    if shell._version:
-        versionText = "v{}".format(shell._version)
-    else:
-        versionText = "v?"
-
+    versionText = f"v{shell._version}" if shell._version else "v?"
     # Build gui text
     guiText = shell._startup_info.get("gui")
     guiText = guiText or ""
     if guiText.lower() in ["none", ""]:
         guiText = "without gui"
     else:
-        guiText = "with " + guiText + " gui"
+        guiText = f"with {guiText} gui"
 
     # Build state text
     stateText = shell._state or ""
@@ -54,20 +50,11 @@ def shellTitle(shell, moreinfo=False):
     ss = elapsed - hh * 3600 - mm * 60
     runtimeText = "runtime: %i:%02i:%02i" % (hh, mm, ss)
 
-    # Build text
-    if not moreinfo:
-        text = nameText
-    else:
-        text = "'%s' (%s %s) - %s, %s" % (
-            nameText,
-            versionText,
-            guiText,
-            stateText,
-            runtimeText,
-        )
-
-    # Done
-    return text
+    return (
+        f"'{nameText}' ({versionText} {guiText}) - {stateText}, {runtimeText}"
+        if moreinfo
+        else nameText
+    )
 
 
 class ShellStackWidget(QtWidgets.QWidget):
@@ -196,36 +183,31 @@ class ShellStackWidget(QtWidgets.QWidget):
         by onCurrentChanged. Sets the debug button.
         """
 
-        if shell is self.getCurrentShell():
-
-            # Update debug info
-            if shell and shell._debugState:
-                info = shell._debugState
-                self._debugmode = info["debugmode"]
-                for action in self._debugActions:
-                    action.setEnabled(self._debugmode == 2)
-                self._debugActions[-1].setEnabled(self._debugmode > 0)  # Stop
-                self._dbs.setTrace(shell._debugState)
-            else:
-                for action in self._debugActions:
-                    action.setEnabled(False)
-                self._debugmode = 0
-                self._dbs.setTrace(None)
-            # Send signal
-            self.currentShellStateChanged.emit()
+        if shell is not self.getCurrentShell():
+            return
+        # Update debug info
+        if shell and shell._debugState:
+            info = shell._debugState
+            self._debugmode = info["debugmode"]
+            for action in self._debugActions:
+                action.setEnabled(self._debugmode == 2)
+            self._debugActions[-1].setEnabled(self._debugmode > 0)  # Stop
+            self._dbs.setTrace(shell._debugState)
+        else:
+            for action in self._debugActions:
+                action.setEnabled(False)
+            self._debugmode = 0
+            self._dbs.setTrace(None)
+        # Send signal
+        self.currentShellStateChanged.emit()
 
     def getCurrentShell(self):
         """getCurrentShell()
         Get the currently active shell.
         """
 
-        w = None
-        if self._stack.count():
-            w = self._stack.currentWidget()
-        if not w:
-            return None
-        else:
-            return w
+        w = self._stack.currentWidget() if self._stack.count() else None
+        return w if w else None
 
     def getShells(self):
         """Get all shell in stack as list"""
@@ -240,9 +222,6 @@ class ShellStackWidget(QtWidgets.QWidget):
 
     def getShellAt(self, i):
         return
-        """ Get shell at current tab index """
-
-        return self._stack.widget(i)
 
     def addContextMenu(self):
         # A bit awkward... but the ShellMenu needs the ShellStack, so it
@@ -276,16 +255,12 @@ class ShellStackWidget(QtWidgets.QWidget):
     def contextMenuTriggered(self, p):
         """Called when context menu is clicked"""
 
-        # Get index of shell belonging to the tab
-        shell = self.getCurrentShell()
-
-        if shell:
+        if shell := self.getCurrentShell():
             p = self._shellButton.mapToGlobal(self._shellButton.rect().bottomLeft())
             ShellTabContextMenu(shell=shell, parent=self).popup(p)
 
     def onShellAction(self, action):
-        shell = self.getCurrentShell()
-        if shell:
+        if shell := self.getCurrentShell():
             getattr(shell, action)()
 
 
@@ -479,7 +454,7 @@ class DebugStack(QtWidgets.QToolButton):
 
         # Set text and tooltip
         self._baseText = translate("debug", "Stack")
-        self.setText("%s:" % self._baseText)
+        self.setText(f"{self._baseText}:")
         self.setIcon(pyzo.icons.text_align_justify)
         self.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.setPopupMode(self.InstantPopup)
@@ -496,11 +471,9 @@ class DebugStack(QtWidgets.QToolButton):
 
         # Change stack index
         if not action._isCurrent:
-            shell.executeCommand("DB FRAME {}\n".format(action._index))
-        # Open file and select line
-        if True:
-            line = action.text().split(": ", 1)[1]
-            self.debugFocus(line)
+            shell.executeCommand(f"DB FRAME {action._index}\n")
+        line = action.text().split(": ", 1)[1]
+        self.debugFocus(line)
 
     def setTrace(self, info):
         """Set the stack trace. This method is called from
@@ -561,7 +534,7 @@ class DebugStack(QtWidgets.QToolButton):
                 menu.setDefaultAction(theAction)
                 # self.setText(theAction.text().ljust(20))
                 i = theAction._index
-                text = "{} ({}/{}):  ".format(self._baseText, i, len(frames))
+                text = f"{self._baseText} ({i}/{len(frames)}):  "
                 self.setText(text)
 
             self.setEnabled(True)
@@ -584,11 +557,7 @@ class DebugStack(QtWidgets.QToolButton):
             return "Stack frame is IPython input."
         elif filename.startswith("<"):
             return "Stack frame is special name"
-        # Go there!
-        result = pyzo.editors.loadFile(filename)
-        if not result:
-            return "Could not open file where the error occured."
-        else:
+        if result := pyzo.editors.loadFile(filename):
             editor = result._editor
             # Goto line and select it
             editor.gotoLine(linenr)
@@ -596,6 +565,8 @@ class DebugStack(QtWidgets.QToolButton):
             cursor.movePosition(cursor.StartOfBlock)
             cursor.movePosition(cursor.EndOfBlock, cursor.KeepAnchor)
             editor.setTextCursor(cursor)
+        else:
+            return "Could not open file where the error occured."
 
 
 class InterpreterHelper(QtWidgets.QWidget):
@@ -694,7 +665,7 @@ class InterpreterHelper(QtWidgets.QWidget):
             )
 
         link_style = "font-weight: bold; color:#369; text-decoration:underline;"
-        self._label.setText(text.replace("<a ", '<a style="%s" ' % link_style))
+        self._label.setText(text.replace("<a ", f'<a style="{link_style}" '))
 
     def handle_link(self, url):
         if url == "refresh":
@@ -706,7 +677,7 @@ class InterpreterHelper(QtWidgets.QWidget):
         elif url.startswith(("http://", "https://")):
             webbrowser.open(url)
         else:
-            raise ValueError("Unknown link in conda helper: %s" % url)
+            raise ValueError(f"Unknown link in conda helper: {url}")
 
     def editShellConfig(self):
         from pyzo.core.shellInfoDialog import ShellInfoDialog

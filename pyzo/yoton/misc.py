@@ -70,7 +70,7 @@ def Property(function):
         if key in known_keys:
             D[key] = func_locals[key]
         else:
-            raise RuntimeError("Invalid Property element: %s" % key)
+            raise RuntimeError(f"Invalid Property element: {key}")
 
     # Done
     return property(**D)
@@ -86,11 +86,9 @@ def getErrorMsg():
     # Get traceback info
     type, value, tb = sys.exc_info()
 
-    # Store for debugging?
-    if True:
-        sys.last_type = type
-        sys.last_value = value
-        sys.last_traceback = tb
+    sys.last_type = type
+    sys.last_value = value
+    sys.last_traceback = tb
 
     # Print
     err = ""
@@ -248,7 +246,7 @@ class UID:
 
     def __repr__(self):
         h = self.get_hex()
-        return "<UID %s-%s>" % (h[:8], h[8:])
+        return f"<UID {h[:8]}-{h[8:]}>"
 
     def get_hex(self):
         """get_hex()
@@ -291,7 +289,7 @@ class UID:
         UID._last_timestamp = timestamp
         # Truncate to 4 bytes. If the time goes beyond the integer limit, we just
         # restart counting. With this setup, the cycle is almost 25 days
-        timestamp = timestamp & 0xFFFFFFFF
+        timestamp &= 0xFFFFFFFF
         # Don't allow 0
         if timestamp == 0:
             timestamp += 1
@@ -372,14 +370,9 @@ class PackageQueue(object):
                 # Add now and notify any waiting threads in get()
                 q.append(x)
                 condition.notify()  # code at wait() procedes
-            else:
-                # Full, either discard or pop (no need to notify)
-                if self._discard_mode == 1:
-                    q.popleft()  # pop old
-                    q.append(x)
-                elif self._discard_mode == 2:
-                    pass  # Simply do not add
-
+            elif self._discard_mode == 1:
+                q.popleft()  # pop old
+                q.append(x)
         finally:
             condition.release()
 
@@ -431,8 +424,7 @@ class PackageQueue(object):
                 # Wait if no items, then raise error if still no items
                 if not len(q):
                     condition.wait(block)
-                    if not len(q):
-                        raise self.Empty()
+                    raise self.Empty()
             else:
                 raise ValueError("Invalid value for block in PackageQueue.pop().")
 
@@ -521,14 +513,9 @@ class TinyPackageQueue(PackageQueue):
                 # The queue is above its limit, but not full
                 condition.wait(self._timeout)
                 q.append(x)
-            else:
-                # Full, either discard or pop (no need to notify)
-                if self._discard_mode == 1:
-                    q.popleft()  # pop old
-                    q.append(x)
-                elif self._discard_mode == 2:
-                    pass  # Simply do not add
-
+            elif self._discard_mode == 1:
+                q.popleft()  # pop old
+                q.append(x)
         finally:
             condition.release()
 
@@ -562,8 +549,7 @@ class TinyPackageQueue(PackageQueue):
                 # Wait if no items, then raise error if still no items
                 if not len(q):
                     condition.wait(block)
-                    if not len(q):
-                        raise self.Empty()
+                    raise self.Empty()
             else:
                 raise ValueError("Invalid value for block in PackageQueue.pop().")
 

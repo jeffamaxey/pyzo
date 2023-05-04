@@ -82,8 +82,7 @@ class Settings(QtWidgets.QWidget):
         self.add_doc_do(doc_file)
 
     def add_doc_do(self, doc_file):
-        ok = self._engine.registerDocumentation(doc_file)
-        if ok:
+        if ok := self._engine.registerDocumentation(doc_file):
             self._model.setStringList(self._engine.registeredDocumentations())
         else:
             QtWidgets.QMessageBox.critical(self, "Error", "Error loading doc")

@@ -104,17 +104,21 @@ setup(
 
 # Post processing:
 # Install appdata.xml on Linux if we are installing in the system Python
-if sys.platform.startswith("linux") and sys.prefix.startswith("/usr"):
-    if len(sys.argv) >= 2 and sys.argv[1] == "install":
-        fname = "pyzo.appdata.xml"
-        filename1 = os.path.join(os.path.dirname(__file__), fname)
-        filename2 = os.path.join("/usr/share/metainfo", fname)
-        try:
-            bb = open(filename1, "rb").read()
-            open(filename2, "wb").write(bb)
-        except PermissionError:
-            pass  # No sudo, no need to warn
-        except Exception as err:
-            print("Could not install %s: %s" % (fname, str(err)))
-        else:
-            print("Installed %s" % fname)
+if (
+    sys.platform.startswith("linux")
+    and sys.prefix.startswith("/usr")
+    and len(sys.argv) >= 2
+    and sys.argv[1] == "install"
+):
+    fname = "pyzo.appdata.xml"
+    filename1 = os.path.join(os.path.dirname(__file__), fname)
+    filename2 = os.path.join("/usr/share/metainfo", fname)
+    try:
+        bb = open(filename1, "rb").read()
+        open(filename2, "wb").write(bb)
+    except PermissionError:
+        pass  # No sudo, no need to warn
+    except Exception as err:
+        print(f"Could not install {fname}: {str(err)}")
+    else:
+        print(f"Installed {fname}")

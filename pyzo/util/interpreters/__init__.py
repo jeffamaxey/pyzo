@@ -27,19 +27,19 @@ def get_interpreters(minimumVersion=None):
         pythons = _get_interpreters_win()
     else:
         pythons = _get_interpreters_posix()
-    pythons = set([PythonInterpreter(p) for p in pythons])
+    pythons = {PythonInterpreter(p) for p in pythons}
 
     # Get conda paths
-    condas = set([PythonInterpreter(p) for p in _get_interpreters_conda()])
+    condas = {PythonInterpreter(p) for p in _get_interpreters_conda()}
 
     # Get relative interpreters
-    relative = set([PythonInterpreter(p) for p in _get_interpreters_relative()])
+    relative = {PythonInterpreter(p) for p in _get_interpreters_relative()}
 
     # Get Pyzo paths
-    pyzos = set([PythonInterpreter(p) for p in _get_interpreters_pyzo()])
+    pyzos = {PythonInterpreter(p) for p in _get_interpreters_pyzo()}
 
     # Get pipenv paths
-    pipenvs = set([PythonInterpreter(p) for p in _get_interpreters_pipenv()])
+    pipenvs = {PythonInterpreter(p) for p in _get_interpreters_pipenv()}
 
     # Almost done
     interpreters = set.union(pythons, condas, relative, pyzos, pipenvs)
@@ -66,12 +66,7 @@ def _select_interpreters(interpreters, minimumVersion):
 
 
 def _get_interpreters_win():
-    found = []
-
-    # Query from registry
-    for v in get_interpreters_in_reg():
-        found.append(v.installPath())
-
+    found = [v.installPath() for v in get_interpreters_in_reg()]
     # Check common locations
     for rootname in [
         "C:/",
@@ -124,14 +119,17 @@ def _get_interpreters_posix():
 
         # Search for python executables
         for fname in files:
-            if fname.startswith(("python", "pypy")) and not fname.count("config"):
-                if len(fname) < 16:
-                    # Get filename and resolve symlink
-                    filename = os.path.join(searchpath, fname)
-                    filename = os.path.realpath(filename)
-                    # Seen on OS X that was not a valid file
-                    if os.path.isfile(filename):
-                        found.append(filename)
+            if (
+                fname.startswith(("python", "pypy"))
+                and not fname.count("config")
+                and len(fname) < 16
+            ):
+                # Get filename and resolve symlink
+                filename = os.path.join(searchpath, fname)
+                filename = os.path.realpath(filename)
+                # Seen on OS X that was not a valid file
+                if os.path.isfile(filename):
+                    found.append(filename)
 
     # Look for user-installed Python interpreters such as pypy and anaconda
     for rootname in ["~", "/usr/local"]:
@@ -160,10 +158,7 @@ def _get_interpreters_pyzo():
     pythonname = "python" + ".exe" * sys.platform.startswith("win")
     exes = []
     for d in paths.pyzo_dirs():
-        for fname in [
-            os.path.join(d, "bin", pythonname + "3"),
-            os.path.join(d, pythonname),
-        ]:
+        for fname in [os.path.join(d, "bin", f"{pythonname}3"), os.path.join(d, pythonname)]:
             if os.path.isfile(fname):
                 exes.append(fname)
                 break
@@ -180,7 +175,7 @@ def _get_interpreters_conda():
     exes = []
     filename = os.path.expanduser("~/.conda/environments.txt")
     if os.path.isfile(filename):
-        for line in open(filename, "rt").readlines():
+        for line in open(filename, "rt"):
             line = line.strip()
             exe_filename = os.path.join(line, pythonname)
             if line and os.path.isfile(exe_filename):

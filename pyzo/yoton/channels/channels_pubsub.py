@@ -142,8 +142,7 @@ class SubChannel(BaseChannel):
         return self
 
     def __next__(self):  # Python 3.x
-        m = self.recv(False)
-        if m:
+        if m := self.recv(False):
             return m
         else:
             raise StopIteration()
@@ -180,10 +179,7 @@ class SubChannel(BaseChannel):
             self._send_block_message_to_senders("ok")
 
         # Set new queue status flag
-        if value:
-            self._queue_status = QUEUE_OK
-        else:
-            self._queue_status = QUEUE_NULL
+        self._queue_status = QUEUE_OK if value else QUEUE_NULL
 
     def _send_block_message_to_senders(self, what):
         """_send_block_message_to_senders(what)
@@ -275,7 +271,7 @@ class SubChannel(BaseChannel):
 
         # Pop all messages and return as a list
         pop = self._q_in.pop
-        packages = [pop() for i in xrange(len(self._q_in))]
+        packages = [pop() for _ in xrange(len(self._q_in))]
         return [self.message_from_bytes(p._data) for p in packages]
 
     def recv_selected(self):
@@ -303,7 +299,7 @@ class SubChannel(BaseChannel):
 
         # Pop all messages that have sequence number lower than reference
         try:
-            for i in xrange(len(q)):
+            for _ in xrange(len(q)):
                 part = q.pop()
                 if part._recv_seq > ref_seq:
                     q.insert(part)  # put back in queue

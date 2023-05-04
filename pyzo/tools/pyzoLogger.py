@@ -61,7 +61,7 @@ class PyzoLoggerShell(BaseShell):
         # Use color as if all lines are highlighted
         f1 = self.getStyleElementFormat("Editor.text")
         f2 = self.getStyleElementFormat("Editor.Highlight current line")
-        newStyle = "back:%s, fore:%s" % (f2.back.name(), f1.fore.name())
+        newStyle = f"back:{f2.back.name()}, fore:{f1.fore.name()}"
         self.setStyle(editor_text=newStyle)
 
         # Create namespace for logger interpreter
@@ -93,8 +93,7 @@ class PyzoLoggerShell(BaseShell):
 
         # "Echo" stdin
         self.write(command, 1)
-        more = self._interpreter.push(command.rstrip("\n"))
-        if more:
+        if more := self._interpreter.push(command.rstrip("\n")):
             self.write(str(sys.ps2), 2)
         else:
             self.write(str(sys.ps1), 2)
@@ -122,7 +121,7 @@ class PyzoLoggerShell(BaseShell):
                 pass
 
         # Query list of names
-        command = "dir({})".format(aco.name)
+        command = f"dir({aco.name})"
         try:
             names = eval(command, {}, self._interpreter.locals)
             aco.addNames(names)

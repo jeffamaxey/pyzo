@@ -132,9 +132,8 @@ class OutputStreamSplitter:
         except Exception:
             pass  # self._original.write('error writing to deferred stream')
         # Show in statusbar
-        if pyzo.config.view.showStatusbar and len(text) > 1:
-            if pyzo.main:
-                pyzo.main.statusBar().showMessage(text, 5000)
+        if pyzo.config.view.showStatusbar and len(text) > 1 and pyzo.main:
+            pyzo.main.statusBar().showMessage(text, 5000)
 
     def flush(self):
         return self._original.flush()

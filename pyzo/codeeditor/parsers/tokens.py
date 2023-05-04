@@ -50,7 +50,7 @@ class Token(object):
         return self.line[self.start : self.end]
 
     def __repr__(self):
-        return repr("%s:%s" % (self.name, self))
+        return repr(f"{self.name}:{self}")
 
     def __len__(self):
         # Defining a length also gives a Token a boolean value: True if there
@@ -96,7 +96,7 @@ class Token(object):
 
         """
         format = self.getDefaultStyleFormat()
-        des = "syntax: " + self.__doc__
+        des = f"syntax: {self.__doc__}"
         return StyleElementDescription(self.name, des, str(format))
 
 

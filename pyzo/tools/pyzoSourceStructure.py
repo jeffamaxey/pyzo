@@ -132,7 +132,7 @@ class PyzoSourceStructure(QtWidgets.QWidget):
 
         for type in ["class", "def", "cell", "todo", "import", "attribute"]:
             checked = type in self._config.showTypes
-            action = menu.addAction("Show %s" % type)
+            action = menu.addAction(f"Show {type}")
             action.setCheckable(True)
             action.setChecked(checked)
 
@@ -285,7 +285,7 @@ class PyzoSourceStructure(QtWidgets.QWidget):
                     continue
                 # Construct text
                 if type == "import":
-                    text = "→ %s (%s)" % (object.name, object.text)
+                    text = f"→ {object.name} ({object.text})"
                 elif type == "todo":
                     text = object.name
                 elif type == "nameismain":
@@ -293,14 +293,14 @@ class PyzoSourceStructure(QtWidgets.QWidget):
                 elif type == "class":
                     text = object.name
                 elif type == "def":
-                    text = object.name + "()"
+                    text = f"{object.name}()"
                 elif type == "attribute":
-                    text = "- " + object.name
+                    text = f"- {object.name}"
                 elif type in ("cell", "##", "#%%", "# %%"):
                     type = "cell"
-                    text = "## " + object.name + " " * 120
+                    text = f"## {object.name}" + " " * 120
                 else:
-                    text = "%s %s" % (type, object.name)
+                    text = f"{type} {object.name}"
                 # Create item
                 thisItem = QtWidgets.QTreeWidgetItem(parentItem, [text])
                 color = QtGui.QColor(colours[object.type])
@@ -318,7 +318,7 @@ class PyzoSourceStructure(QtWidgets.QWidget):
                 if object.children:
                     SetItems(thisItem, object.children, level)
                 # Set visibility
-                thisItem.setExpanded(bool(level < showLevel))
+                thisItem.setExpanded(level < showLevel)
 
         # Go
         self._tree.setUpdatesEnabled(False)

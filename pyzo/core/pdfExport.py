@@ -127,58 +127,58 @@ class PdfExport(QtWidgets.QDialog):
     def _print(self):
         """Generate the pdf for preview and export"""
 
-        if self.editor is not None:
+        if self.editor is None:
+            return
+        cursor = self.editor.textCursor()
+        cursor.movePosition(cursor.Start)
+        cursor.movePosition(cursor.End, cursor.KeepAnchor)
 
-            cursor = self.editor.textCursor()
-            cursor.movePosition(cursor.Start)
-            cursor.movePosition(cursor.End, cursor.KeepAnchor)
+        cursor.insertText(pyzo.editors.getCurrentEditor().toPlainText())
+        self._set_zoom(self.zoom_selected)
 
-            cursor.insertText(pyzo.editors.getCurrentEditor().toPlainText())
-            self._set_zoom(self.zoom_selected)
+        # Print with line numbers
+        lines = self.editor.toPlainText().splitlines()
+        nzeros = len(str(len(lines)))
 
-            # Print with line numbers
-            lines = self.editor.toPlainText().splitlines()
-            nzeros = len(str(len(lines)))
+        self._apply_syntax_highlighting()
+        starting_line = 0
 
-            self._apply_syntax_highlighting()
-            starting_line = 0
-
-            self._change_orientation()
+        self._change_orientation()
 
             # Print name or filename in the editor
-            if self.combobox_file_name.currentIndex():
-                starting_line = 1
-                if self.combobox_file_name.currentIndex() == 1:
-                    lines.insert(0, "# " + self.editor_name + "\n")
-                elif self.combobox_file_name.currentIndex() == 2:
-                    lines.insert(0, "# " + self.editor_filename + "\n")
+        if self.combobox_file_name.currentIndex():
+            starting_line = 1
+            if self.combobox_file_name.currentIndex() == 1:
+                lines.insert(0, f"# {self.editor_name}" + "\n")
+            elif self.combobox_file_name.currentIndex() == 2:
+                lines.insert(0, f"# {self.editor_filename}" + "\n")
 
-            # Print line numbers in the editor
-            if self.show_line_number:
-                for i in range(starting_line, len(lines)):
-                    lines[i] = (
-                        str(i + 1 - starting_line).rjust(nzeros, "0") + "| " + lines[i]
-                    )
+        # Print line numbers in the editor
+        if self.show_line_number:
+            for i in range(starting_line, len(lines)):
+                lines[i] = (
+                    str(i + 1 - starting_line).rjust(nzeros, "0") + "| " + lines[i]
+                )
 
-            cursor = self.editor.textCursor()
-            cursor.movePosition(cursor.Start)
-            cursor.movePosition(cursor.End, cursor.KeepAnchor)
-            cursor.insertText("\n".join(lines))
+        cursor = self.editor.textCursor()
+        cursor.movePosition(cursor.Start)
+        cursor.movePosition(cursor.End, cursor.KeepAnchor)
+        cursor.insertText("\n".join(lines))
 
             # Highlight line numbers
-            if self.show_line_number:
-                cursor.movePosition(cursor.Start, cursor.MoveAnchor)
-                # Move the cursor down 2 lines if a title is printed
-                if starting_line != 0:
-                    cursor.movePosition(cursor.NextBlock, cursor.MoveAnchor, 2)
+        if self.show_line_number:
+            cursor.movePosition(cursor.Start, cursor.MoveAnchor)
+            # Move the cursor down 2 lines if a title is printed
+            if starting_line != 0:
+                cursor.movePosition(cursor.NextBlock, cursor.MoveAnchor, 2)
                 # Apply background for lines numbers
-                for i in range(len(lines)):
-                    fmt = QtGui.QTextCharFormat()
-                    fmt.setBackground(QtGui.QColor(240, 240, 240))
-                    cursor.movePosition(cursor.Right, cursor.KeepAnchor, nzeros)
-                    cursor.setCharFormat(fmt)
-                    cursor.movePosition(cursor.NextBlock, cursor.MoveAnchor)
-                    cursor.movePosition(cursor.StartOfBlock, cursor.MoveAnchor)
+            for _ in range(len(lines)):
+                fmt = QtGui.QTextCharFormat()
+                fmt.setBackground(QtGui.QColor(240, 240, 240))
+                cursor.movePosition(cursor.Right, cursor.KeepAnchor, nzeros)
+                cursor.setCharFormat(fmt)
+                cursor.movePosition(cursor.NextBlock, cursor.MoveAnchor)
+                cursor.movePosition(cursor.StartOfBlock, cursor.MoveAnchor)
 
     def _update_preview(self):
         """Update the widget preview"""
@@ -192,24 +192,14 @@ class PdfExport(QtWidgets.QDialog):
         """Exports the code as pdf, and opens file manager"""
         if self.editor is not None:
 
-            if True:
-                filename = QtWidgets.QFileDialog.getSaveFileName(
-                    None, "Export PDF", os.path.expanduser("~"), "*.pdf *.ps"
-                )
-                if isinstance(filename, tuple):  # PySide
-                    filename = filename[0]
-                if not filename:
-                    return
-                self.printer.setOutputFileName(filename)
-            else:
-                d = QtWidgets.QPrintDialog(self.printer)
-                d.setWindowTitle("Print code")
-                d.setOption(d.PrintSelection, self.editor.textCursor().hasSelection())
-                d.setOption(d.PrintToFile, True)
-                ok = d.exec_()
-                if ok != d.Accepted:
-                    return
-
+            filename = QtWidgets.QFileDialog.getSaveFileName(
+                None, "Export PDF", os.path.expanduser("~"), "*.pdf *.ps"
+            )
+            if isinstance(filename, tuple):  # PySide
+                filename = filename[0]
+            if not filename:
+                return
+            self.printer.setOutputFileName(filename)
         try:
             self._print()
             self.editor.print_(self.printer)
@@ -219,10 +209,7 @@ class PdfExport(QtWidgets.QDialog):
 
     def _get_show_line_number(self, state):
         """Change the show_line_number according to the checkbox"""
-        if state == QtCore.Qt.Checked:
-            self.show_line_number = True
-        else:
-            self.show_line_number = False
+        self.show_line_number = state == QtCore.Qt.Checked
 
     def _set_zoom(self, value):
         """Apply zoom setting only to the editor used to generate the pdf
@@ -233,15 +220,12 @@ class PdfExport(QtWidgets.QDialog):
         """Triggered when the zoom slider is changed"""
         self.zoom_selected = self.zoom_slider.value()
         zoom_level = self.zoom_selected - self.zoom_slider.minimum()
-        self.zoom_value_label.setText("Zoom level : {}".format(zoom_level))
+        self.zoom_value_label.setText(f"Zoom level : {zoom_level}")
 
     def _change_syntax_highlighting_option(self, state):
         """Used for the syntax highlight checkbox when its state change
         to change the option value"""
-        if state == QtCore.Qt.Checked:
-            self._enable_syntax_highlighting = True
-        else:
-            self._enable_syntax_highlighting = False
+        self._enable_syntax_highlighting = state == QtCore.Qt.Checked
 
     def _apply_syntax_highlighting(self):
         """Apply the syntax setting when _print() is used"""

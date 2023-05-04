@@ -81,9 +81,7 @@ class ToolDockWidget(QtWidgets.QDockWidget):
         if self._toolManager:
             self._toolManager.onToolClose(self._toolId)
             self._toolManager = None
-        # Close and delete widget
-        old = self.widget()
-        if old:
+        if old := self.widget():
             old.close()
             old.deleteLater()
         # Close and delete dock widget
@@ -112,11 +110,7 @@ class ToolDescription:
         self.modulePath = modulePath
         self.moduleName = os.path.splitext(os.path.basename(modulePath))[0]
         self.id = self.moduleName.lower()
-        if name:
-            self.name = name
-        else:
-            self.name = self.id
-
+        self.name = name if name else self.id
         # Set description
         self.description = description
         # Init instance to None, will be set when loaded
@@ -213,9 +207,6 @@ class ToolManager(QtCore.QObject):
                     line = line.rstrip("\n").rstrip("\r")
                     line = line[i + 1 :].strip(" ")
                     toolSummary = line.strip("'").strip('"')
-                else:
-                    pass
-
             # Add stuff
             tmp = ToolDescription(modulePath, toolName, toolSummary)
             newlist.append(tmp)
@@ -266,8 +257,8 @@ class ToolManager(QtCore.QObject):
             return None
 
         # Remove from sys.modules, to force the module to reload
-        for key in [key for key in sys.modules]:
-            if key and key.startswith("pyzo.tools." + moduleName):
+        for key in list(sys.modules):
+            if key and key.startswith(f"pyzo.tools.{moduleName}"):
                 del sys.modules[key]
 
         # Load module
@@ -275,9 +266,9 @@ class ToolManager(QtCore.QObject):
             m_file, m_fname, m_des = imp.find_module(
                 moduleName, [os.path.dirname(modulePath)]
             )
-            mod = imp.load_module("pyzo.tools." + moduleName, m_file, m_fname, m_des)
+            mod = imp.load_module(f"pyzo.tools.{moduleName}", m_file, m_fname, m_des)
         except Exception as why:
-            print("Invalid tool " + toolId + ":", why)
+            print(f"Invalid tool {toolId}:", why)
             return None
 
         # Is the expected class present?
@@ -287,7 +278,7 @@ class ToolManager(QtCore.QObject):
                 className = member
                 break
         else:
-            print("Invalid tool, Classname must match module name '%s'!" % toolId)
+            print(f"Invalid tool, Classname must match module name '{toolId}'!")
             return None
 
         # Does it inherit from QWidget?
@@ -324,13 +315,10 @@ class ToolManager(QtCore.QObject):
             return
 
         # Obtain name from buffered list of names
-        for toolDes in self._toolInfo:
-            if toolDes.id == toolId:
-                name = toolDes.name
-                break
-        else:
-            name = toolId
-
+        name = next(
+            (toolDes.name for toolDes in self._toolInfo if toolDes.id == toolId),
+            toolId,
+        )
         # Make sure there is a config entry for this tool
         if not hasattr(pyzo.config.tools, toolId):
             pyzo.config.tools[toolId] = ssdf.new()
@@ -376,8 +364,8 @@ class ToolManager(QtCore.QObject):
 
     def getLoadedTools(self):
         """Get a list with id's of loaded tools."""
-        tmp = []
-        for toolDes in self.getToolInfo():
-            if toolDes.id in self._activeTools:
-                tmp.append(toolDes.id)
-        return tmp
+        return [
+            toolDes.id
+            for toolDes in self.getToolInfo()
+            if toolDes.id in self._activeTools
+        ]

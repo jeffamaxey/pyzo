@@ -66,15 +66,15 @@ def _detect_equalbang(line):
         # iteration on two successive elements, https://docs.python.org/3/library/itertools.html#itertools-recipes
         first, second = itertools.tee(gtoks)
         next(second, None)
-        for tok1, tok2 in zip(first, second):
-            if (
+        return any(
+            (
                 tok1.type == token.OP
                 and tok1.string == "="
                 and tok2.type == token.ERRORTOKEN
                 and tok2.string == "!"
-            ):
-                return True
-        return False
+            )
+            for tok1, tok2 in zip(first, second)
+        )
     except tokenize.TokenError:  # typically this means an unmatched parenthesis
         return False
 
@@ -95,23 +95,22 @@ def _should_not_interpret_as_magic(line):
     pos = 0
     while pos < len(ltok) and ltok[pos].type in [59, token.INDENT, tokenize.ENCODING]:
         # 59 is BACKQUOTE but there is no token.BACKQUOTE...
-        pos = pos + 1
+        pos += 1
     # when line is only garbage or does not begin with a name
     if pos >= len(ltok) or ltok[pos].type != token.NAME:
         return True
     command = ltok[pos].string
     if keyword.iskeyword(command):
         return True
-    pos = pos + 1
+    pos += 1
     # command is alone on the line
     if pos >= len(ltok) or ltok[pos].type in [token.ENDMARKER, tokenize.COMMENT]:
         if command in interpreter.locals:
             return True
         if interpreter.globals and command in interpreter.globals:
             return True
-    else:  # command is not alone ; next token should not be an operator (this includes parentheses)
-        if ltok[pos].type == token.OP and not line.endswith("?"):
-            return True
+    elif ltok[pos].type == token.OP and not line.endswith("?"):
+        return True
 
     return False
 
@@ -121,13 +120,12 @@ class Magician:
 
         # Get namespace
         NS1 = sys._pyzoInterpreter.locals
-        NS2 = sys._pyzoInterpreter.globals
-        if not NS2:
-            NS = NS1
-        else:
+        if NS2 := sys._pyzoInterpreter.globals:
             NS = NS2.copy()
             NS.update(NS1)
 
+        else:
+            NS = NS1
         # Evaluate in namespace
         return eval(command, {}, NS)
 
@@ -162,10 +160,7 @@ class Magician:
             return None
 
         # Process
-        if res is None:
-            return line
-        else:
-            return res
+        return line if res is None else res
 
     def _convert_command(self, line):
 
@@ -184,14 +179,11 @@ class Magician:
             except Exception:
                 pass  # dont break interpreter if above func has a bug ...
 
-        else:
-            # Old, not as good check for outdated Python version
-            # Check if it is a variable
-            if " " not in command:
-                if command in interpreter.locals:
-                    return
-                if interpreter.globals and command in interpreter.globals:
-                    return
+        elif " " not in command:
+            if command in interpreter.locals:
+                return
+            if interpreter.globals and command in interpreter.globals:
+                return
 
         # Clean and make case insensitive
         command = line.upper().rstrip()
@@ -236,26 +228,24 @@ class Magician:
 
             # EDIT do not run code after editing
             if command.startswith("EDIT ") and " -X " not in command:
-                return "edit -x " + line[5:]
+                return f"edit -x {line[5:]}"
 
             # In all cases stop processing magic commands
             return
 
-        # Commands that we only support in the absense of IPtython
-
         elif command == "?":
-            return "print(%s)" % repr(MESSAGE)
+            return f"print({repr(MESSAGE)})"
 
         elif command.startswith("??"):
-            return "help(%s)" % line[2:].rstrip()
+            return f"help({line[2:].rstrip()})"
         elif command.endswith("??"):
-            return "help(%s)" % line.rstrip()[:-2]
+            return f"help({line.rstrip()[:-2]})"
 
         elif command.startswith("?"):
-            return "print(%s.__doc__)" % line[1:].rstrip()
+            return f"print({line[1:].rstrip()}.__doc__)"
 
         elif command.endswith("?"):
-            return "print(%s.__doc__)" % line.rstrip()[:-1]
+            return f"print({line.rstrip()[:-1]}.__doc__)"
 
         elif command.startswith("CD"):
             return self.cd(line, command)
@@ -288,7 +278,7 @@ class Magician:
         _, cmd, arg = line.split(" ", 2)
         cmd = cmd.lower()
         # Get func
-        func = getattr(interpreter.debugger, "do_" + cmd, None)
+        func = getattr(interpreter.debugger, f"do_{cmd}", None)
         # Call or show warning
         if func is not None:
             func(arg.strip())
@@ -306,16 +296,13 @@ class Magician:
 
     def cd(self, line, command):
         if command == "CD" or command.startswith("CD ") and "=" not in command:
-            path = line[3:].strip()
-            if path:
+            if path := line[3:].strip():
                 try:
                     os.chdir(path)
                 except Exception:
-                    print('Could not change to directory "%s".' % path)
+                    print(f'Could not change to directory "{path}".')
                     return ""
-                newPath = os.getcwd()
-            else:
-                newPath = os.getcwd()
+            newPath = os.getcwd()
             # Done
             print(repr(newPath))
             return ""
@@ -333,7 +320,7 @@ class Magician:
 
     def timeit(self, line, command):
         if command == "TIMEIT":
-            return "print(%s)" % repr(TIMEIT_MESSAGE)
+            return f"print({repr(TIMEIT_MESSAGE)})"
         elif command.startswith("TIMEIT "):
             expression = line[7:]
             # Get number of iterations
@@ -348,9 +335,9 @@ class Magician:
             if expression[0] not in "'\"":
                 isidentifier = lambda x: bool(re.match(r"[a-z_]\w*$", x, re.I))
                 if not isidentifier(expression):
-                    expression = "'%s'" % expression
+                    expression = f"'{expression}'"
             # Compile expression
-            line2 = "import timeit; t=timeit.Timer(%s);" % expression
+            line2 = f"import timeit; t=timeit.Timer({expression});"
             line2 += "print(str( t.timeit(%i)/%i ) " % (N, N)
             line2 += '+" seconds on average for %i iterations." )' % N
             #
@@ -358,8 +345,7 @@ class Magician:
 
     def who(self, line, command):
         L = self._eval("dir()\n")
-        L = [k for k in L if not k.startswith("__")]
-        if L:
+        if L := [k for k in L if not k.startswith("__")]:
             print(", ".join(L))
         else:
             print("There are no variables defined in this scope.")
@@ -368,7 +354,7 @@ class Magician:
     def _justify(self, line, width, offset):
         realWidth = width - offset
         if len(line) > realWidth:
-            line = line[: realWidth - 3] + "..."
+            line = f"{line[:realWidth - 3]}..."
         return line.ljust(width)
 
     def whos(self, line, command):
@@ -423,7 +409,7 @@ class Magician:
             try:
                 ob = self._eval(name)
             except NameError:
-                print('There is no object known as "%s"' % name)
+                print(f'There is no object known as "{name}"')
                 return ""
 
             # Try get filename
@@ -455,12 +441,12 @@ class Magician:
         # Almost done
         # IPython's edit now support this via our hook in interpreter.py
         if not fname:
-            print('Could not determine file name for object "%s".' % name)
+            print(f'Could not determine file name for object "{name}".')
         elif linenr is not None:
             action = "open %i %s" % (linenr, os.path.abspath(fname))
             sys._pyzoInterpreter.context._strm_action.send(action)
         else:
-            action = "open %s" % os.path.abspath(fname)
+            action = f"open {os.path.abspath(fname)}"
             sys._pyzoInterpreter.context._strm_action.send(action)
         #
         return ""
@@ -485,7 +471,7 @@ class Magician:
 
         # Go run!
         if not fname:
-            print('Could not find file to run "%s".' % name)
+            print(f'Could not find file to run "{name}".')
         else:
             sys._pyzoInterpreter.runfile(fname)
         #
@@ -506,7 +492,7 @@ class Magician:
 
         if hasconda:
             text = "Trying installation with conda. If this does not work, try:\n"
-            text += "   pip " + line + "\n"
+            text += f"   pip {line}" + "\n"
         else:
             text = "Trying installation with pip\n"
 
@@ -514,9 +500,9 @@ class Magician:
         time.sleep(0.2)
 
         if hasconda:
-            self.conda("conda " + line, "CONDA")
+            self.conda(f"conda {line}", "CONDA")
         else:
-            self.pip("pip " + line, "PIP")
+            self.pip(f"pip {line}", "PIP")
         return ""
 
     def update(self, line, command):
@@ -535,7 +521,7 @@ class Magician:
         time.sleep(0.2)
 
         if hasconda:
-            self.conda("conda " + line, "CONDA")
+            self.conda(f"conda {line}", "CONDA")
         else:
             self.pip("pip " + line.replace("update", "install") + " --upgrade", "PIP")
         return ""
@@ -553,14 +539,14 @@ class Magician:
             text = "Trying remove/uninstall with pip\n"
 
         if hasconda:
-            self.conda("conda " + line, "CONDA")
+            self.conda(f"conda {line}", "CONDA")
         else:
             self.pip("pip " + line.replace("remove", "uninstall"), "PIP")
         return ""
 
     def conda(self, line, command):
 
-        if not (command == "CONDA" or command.startswith("CONDA ")):
+        if command != "CONDA" and not command.startswith("CONDA "):
             return
 
         # Get command args
@@ -579,34 +565,31 @@ class Magician:
             channel_list = ["-c", "conda-forge", "-c", "pyzo"]
 
         def write_no_dots(x):
-            if x.strip() == ".":  # note, no "x if y else z" in Python 2.4
-                return 0
-            return stderr_write(x)
+            return 0 if x.strip() == "." else stderr_write(x)
 
         # Go!
         # Weird double-try, to make work on Python 2.4
         oldargs = sys.argv
         stderr_write = sys.stderr.write
         try:
-            try:
-                # older version of conda would spew dots to stderr during downloading
-                sys.stderr.write = write_no_dots
-                import conda  # noqa
-                from conda.cli import main
+            # older version of conda would spew dots to stderr during downloading
+            sys.stderr.write = write_no_dots
+            import conda  # noqa
+            from conda.cli import main
 
-                sys.argv = ["conda"] + list(args) + channel_list
-                main()
-            except SystemExit:  # as err:
-                type, err, tb = sys.exc_info()
-                del tb
-                err = str(err)
-                if len(err) > 4:  # Only print if looks like a message
-                    print(err)
-            except Exception:  # as err:
-                type, err, tb = sys.exc_info()
-                del tb
-                print("Error in conda command:")
+            sys.argv = ["conda"] + list(args) + channel_list
+            main()
+        except SystemExit:  # as err:
+            type, err, tb = sys.exc_info()
+            del tb
+            err = str(err)
+            if len(err) > 4:  # Only print if looks like a message
                 print(err)
+        except Exception:  # as err:
+            type, err, tb = sys.exc_info()
+            del tb
+            print("Error in conda command:")
+            print(err)
         finally:
             sys.argv = oldargs
             sys.stderr.write = stderr_write
@@ -636,9 +619,7 @@ class Magician:
         # Add PySide PyQt4 from IEP if prefix is the same
         if os.getenv("IEP_PREFIX", "") == sys.prefix:
             loaded_modules.add(os.getenv("IEP_QTLIB", "qt"))
-        # Warn if we have any such modules
-        loaded_modules = [m.lower() for m in loaded_modules if m]
-        if loaded_modules:
+        if loaded_modules := [m.lower() for m in loaded_modules if m]:
             print("WARNING! The following modules are currently loaded:\n")
             print("  " + ", ".join(sorted(loaded_modules)))
             print(
@@ -704,22 +685,21 @@ class Magician:
         # Weird double-try, to make work on Python 2.4
         oldargs = sys.argv
         try:
-            try:
-                import notebook.notebookapp
+            import notebook.notebookapp
 
-                sys.argv = ["jupyter_notebook"] + list(args)
-                notebook.notebookapp.main()
-            except SystemExit:  # as err:
-                type, err, tb = sys.exc_info()
-                del tb
-                err = str(err)
-                if len(err) > 4:  # Only print if looks like a message
-                    print(err)
-            except Exception:  # as err:
-                type, err, tb = sys.exc_info()
-                del tb
-                print("Error in notebook command:")
+            sys.argv = ["jupyter_notebook"] + list(args)
+            notebook.notebookapp.main()
+        except SystemExit:  # as err:
+            type, err, tb = sys.exc_info()
+            del tb
+            err = str(err)
+            if len(err) > 4:  # Only print if looks like a message
                 print(err)
+        except Exception:  # as err:
+            type, err, tb = sys.exc_info()
+            del tb
+            print("Error in notebook command:")
+            print(err)
         finally:
             sys.argv = oldargs
 

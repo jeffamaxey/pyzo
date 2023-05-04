@@ -60,7 +60,7 @@ class PyzoFileBrowser(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self, parent)
 
         # Get config
-        toolId = self.__class__.__name__.lower() + "2"  # This is v2 of the file browser
+        toolId = f"{self.__class__.__name__.lower()}2"
         if toolId not in pyzo.config.tools:
             pyzo.config.tools[toolId] = ssdf.new()
         self.config = pyzo.config.tools[toolId]
@@ -79,11 +79,15 @@ class PyzoFileBrowser(QtWidgets.QWidget):
         # should not be necessary, but maybe the config was manually edited.
         expandedDirs, starredDirs = [], []
         for d in self.config.starredDirs:
-            if "path" in d and "name" in d and "addToPythonpath" in d:
-                if isdir(d.path):
-                    d.path = op.normcase(cleanpath(d.path))
-                    starredDirs.append(d)
-        for p in set([str(p) for p in self.config.expandedDirs]):
+            if (
+                "path" in d
+                and "name" in d
+                and "addToPythonpath" in d
+                and isdir(d.path)
+            ):
+                d.path = op.normcase(cleanpath(d.path))
+                starredDirs.append(d)
+        for p in {str(p) for p in self.config.expandedDirs}:
             if isdir(p):
                 p = op.normcase(cleanpath(p))
                 # Add if it is a subdir of a starred dir
@@ -95,9 +99,7 @@ class PyzoFileBrowser(QtWidgets.QWidget):
 
         # Create browser(s).
         self._browsers = []
-        for i in [0]:
-            self._browsers.append(Browser(self, self.config))
-
+        self._browsers.extend(Browser(self, self.config) for _ in [0])
         # Layout
         layout = QtWidgets.QVBoxLayout(self)
         self.setLayout(layout)
@@ -127,9 +129,7 @@ class PyzoFileBrowser(QtWidgets.QWidget):
         browser = self._browsers[0]
         # Select active project
         d = browser.currentProject()
-        if d and d.addToPythonpath:
-            return d.path
-        return None
+        return d.path if d and d.addToPythonpath else None
 
     def getDefaultSavePath(self):
         """

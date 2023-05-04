@@ -84,8 +84,10 @@ class AskToInstallConda(QtWidgets.QDialog):
         self.setWindowTitle("Install a conda env?")
         self.setModal(True)
 
-        text = "Pyzo is only an editor. To execute code, you need a Python environment.\n\n"
-        text += "Do you want Pyzo to install a Python environment (miniconda)?\n"
+        text = (
+            "Pyzo is only an editor. To execute code, you need a Python environment.\n\n"
+            + "Do you want Pyzo to install a Python environment (miniconda)?\n"
+        )
         text += "If not, you must arrange for a Python interpreter yourself"
         if not sys.platform.startswith("win"):
             text += " or use the system Python"
@@ -223,8 +225,7 @@ class Installer(QtWidgets.QDialog):
 
             self.addStatus("Verifying ... ")
             self._progress.setMaximum(100)
-            ret = self.verify()
-            if ret:
+            if ret := self.verify():
                 self.addOutput("Error\n" + ret)
                 self.addStatus("Verification Failed!")
             else:
@@ -291,10 +292,9 @@ class Installer(QtWidgets.QDialog):
         assert " " not in dest, "miniconda dest path must not contain spaces"
 
         if sys.platform.startswith("win"):
-            return self._run_process([miniconda_path, "/S", "/D=%s" % dest])
-        else:
-            os.chmod(miniconda_path, os.stat(miniconda_path).st_mode | stat.S_IEXEC)
-            return self._run_process([miniconda_path, "-b", "-p", dest])
+            return self._run_process([miniconda_path, "/S", f"/D={dest}"])
+        os.chmod(miniconda_path, os.stat(miniconda_path).st_mode | stat.S_IEXEC)
+        return self._run_process([miniconda_path, "-b", "-p", dest])
 
     def post_install(self):
 
@@ -306,9 +306,10 @@ class Installer(QtWidgets.QDialog):
         self.addStatus("Added Pyzo channel to conda env")
 
         # Add to pyzo shell config
-        if pyzo.config.shellConfigs2 and pyzo.config.shellConfigs2[0]["exe"] == exe:
-            pass
-        else:
+        if (
+            not pyzo.config.shellConfigs2
+            or pyzo.config.shellConfigs2[0]["exe"] != exe
+        ):
             s = pyzo.ssdf.new()
             s.name = "Py3-conda"
             s.exe = exe
@@ -371,7 +372,7 @@ class Installer(QtWidgets.QDialog):
         try:
             ver = subprocess.check_output([exe, "-c", "import sys; print(sys.version)"])
         except Exception as err:
-            return "Error getting Python version: " + str(err)
+            return f"Error getting Python version: {str(err)}"
 
         self._progress.setValue(31)
         if ver.decode() < "3.4":
@@ -383,7 +384,7 @@ class Installer(QtWidgets.QDialog):
                 [exe, "-c", "import conda; print(conda.__version__)"]
             )
         except Exception as err:
-            return "Error calling Python exe: " + str(err)
+            return f"Error calling Python exe: {str(err)}"
 
         self._progress.setValue(51)
         if ver.decode() < "3.16":
@@ -400,12 +401,7 @@ def is_64bit():
     """Get whether the OS is 64 bit. On WIndows yields what it *really*
     is, not what the process is.
     """
-    if False:  # sys.platform.startswith('win'):  ARG, causes problems with subprocess
-        if "PROCESSOR_ARCHITEW6432" in os.environ:
-            return True
-        return os.environ["PROCESSOR_ARCHITECTURE"].endswith("64")
-    else:
-        return struct.calcsize("P") == 8
+    return struct.calcsize("P") == 8
 
 
 def py_exe(dir):
@@ -446,7 +442,7 @@ def _fetch_file(url, file_name, progress=None):
     # Adapted from NISL:
     # https://github.com/nisl/tutorial/blob/master/nisl/datasets.py
 
-    temp_file_name = file_name + ".part"
+    temp_file_name = f"{file_name}.part"
     local_file = None
     initial_size = 0
     try:
@@ -465,9 +461,8 @@ def _fetch_file(url, file_name, progress=None):
             "Error while fetching file %s.\n" "Dataset fetching aborted (%s)" % (url, e)
         )
     finally:
-        if local_file is not None:
-            if not local_file.closed:
-                local_file.close()
+        if local_file is not None and not local_file.closed:
+            local_file.close()
 
 
 class StreamCatcher(threading.Thread):

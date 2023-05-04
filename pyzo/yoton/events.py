@@ -63,11 +63,7 @@ class CallableObject(object):
 
     def isdead(self):
         """Get whether the weak ref is dead."""
-        if self._ob:
-            # Method
-            return self._ob() is None
-        else:
-            return False
+        return self._ob() is None if self._ob else False
 
     def compare(self, other):
         """compare this instance with another."""
@@ -90,10 +86,7 @@ class CallableObject(object):
 
         # Get function
         try:
-            if self._ob:
-                func = getattr(self._ob(), self._func)
-            else:
-                func = self._func
+            func = getattr(self._ob(), self._func) if self._ob else self._func
         except Exception:
             return
 
@@ -177,7 +170,7 @@ class Signal:
         # check -> warn
         for c in self._handlers:
             if cnew.compare(c):
-                print("Warning: handler %s already present for %s" % (func, self))
+                print(f"Warning: handler {func} already present for {self}")
                 return
 
         # add the handler
@@ -193,7 +186,7 @@ class Signal:
             self._handlers[:] = []
         else:
             cref = CallableObject(func)
-            for c in [c for c in self._handlers]:
+            for c in list(self._handlers):
                 # remove if callable matches func or object is destroyed
                 if c.compare(cref) or c.isdead():
                     self._handlers.remove(c)
