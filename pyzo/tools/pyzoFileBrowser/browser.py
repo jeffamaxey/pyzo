@@ -169,7 +169,7 @@ class Browser(QtWidgets.QWidget):
         self._tree.clear()
 
         # items.sort(key=lambda x: x._path)
-        items = [item for item in reversed(items)]
+        items = list(reversed(items))
 
         for item in items:
             self._tree.addTopLevelItem(item)
@@ -464,8 +464,7 @@ class Projects(QtWidgets.QWidget):
         action = menu.addAction(translate("filebrowser", "Add path to Python path"))
         action._id = "pythonpath"
         action.setCheckable(True)
-        d = self.currentDict()
-        if d:
+        if d := self.currentDict():
             checked = bool(d and d["addToPythonpath"])
             action.setChecked(checked)
 
@@ -504,10 +503,8 @@ class Projects(QtWidgets.QWidget):
             d["addToPythonpath"] = not d["addToPythonpath"]
 
         elif action._id == "cd":
-            # cd to the directory
-            shell = pyzo.shells.getCurrentShell()
-            if shell:
-                shell.executeCommand("cd " + d.path + "\n")
+            if shell := pyzo.shells.getCurrentShell():
+                shell.executeCommand(f"cd {d.path}" + "\n")
 
     def onButtonPressed(self):
         if self._but.menu():
@@ -521,8 +518,7 @@ class Projects(QtWidgets.QWidget):
         self.setPath(self._path)
 
     def onProjectSelect(self, index):
-        path = self._combo.itemData(index)
-        if path:
+        if path := self._combo.itemData(index):
             # Go to dir
             self.dirChanged.emit(path)
         else:
@@ -663,9 +659,6 @@ class SearchFilter(LineEditWithToolButtons):
         config = self.parent().config
         option = action._option
         # Swap this option
-        if option in config:
-            config[option] = not config[option]
-        else:
-            config[option] = True
+        config[option] = not config[option] if option in config else True
         # Update
         self.filterChanged.emit()

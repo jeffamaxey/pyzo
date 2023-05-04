@@ -3,6 +3,7 @@
 """ PyInstaller script
 """
 
+
 import os
 import sys
 import shutil
@@ -12,9 +13,9 @@ from distutils.sysconfig import get_python_lib
 # Definitions
 name = "pyzo"
 qt_api = os.getenv("PYZO_QT_API", "PySide6")
-this_dir = os.path.abspath(os.path.dirname(__file__)) + "/"
-exe_script = this_dir + "boot.py"
-dist_dir = this_dir + "dist/"
+this_dir = f"{os.path.abspath(os.path.dirname(__file__))}/"
+exe_script = f"{this_dir}boot.py"
+dist_dir = f"{this_dir}dist/"
 icon_file = os.path.abspath(
     os.path.join(this_dir, "..", "pyzo", "resources", "appicons", "pyzologo.ico")
 )
@@ -54,22 +55,17 @@ def _find_modules(root, extensions, skip, parent=""):
             if filename.isidentifier() and os.path.exists(
                 os.path.join(path, "__init__.py")
             ):
-                if parent:
-                    packageName = parent + "." + filename
-                else:
-                    packageName = filename
-                for module in _find_modules(path, extensions, skip, packageName):
-                    yield module
+                packageName = f"{parent}.{filename}" if parent else filename
+                yield from _find_modules(path, extensions, skip, packageName)
             elif not parent:
-                for module in _find_modules(path, extensions, skip, ""):
-                    yield module
+                yield from _find_modules(path, extensions, skip, "")
         elif "." in filename:
             moduleName, ext = filename.split(".", 1)
             if ext in extensions and moduleName.isidentifier():
                 if parent and moduleName == "__init__":
                     yield parent
                 elif parent:
-                    yield parent + "." + moduleName
+                    yield f"{parent}.{moduleName}"
                 else:
                     yield moduleName
 
@@ -177,13 +173,10 @@ excludes += [f"{qt_api}.{sub}" for sub in qt_excludes]
 # Specify additional "data" that we want to copy over.
 # Better to let PyInstaller copy it rather than copying it after the fact.
 
-data = {}
-data["../pyzo"] = "source/pyzo"
-data["_settings"] = "_settings"
-
+data = {"../pyzo": "source/pyzo", "_settings": "_settings"}
 # Good to first clean up
 count = 0
-for data_dir in data.keys():
+for data_dir in data:
     data_dir = os.path.abspath(os.path.join(this_dir, data_dir))
     if os.path.isdir(data_dir):
         for root, dirnames, filenames in os.walk(data_dir):
@@ -223,9 +216,14 @@ if sys.platform.startswith("win"):
     cmd.extend(["--icon", icon_file])
 elif sys.platform.startswith("darwin"):
     cmd.append("--windowed")  # makes a .app bundle
-    cmd.extend(["--icon", icon_file[:-3] + "icns"])
-    cmd.extend(["--osx-bundle-identifier", "org.pyzo.app"])
-
+    cmd.extend(
+        [
+            "--icon",
+            f"{icon_file[:-3]}icns",
+            "--osx-bundle-identifier",
+            "org.pyzo.app",
+        ]
+    )
 cmd.append(exe_script)
 
 sys.argv[1:] = cmd
@@ -241,7 +239,7 @@ with open(specfilename, "rb") as f:
 if sys.platform.startswith("darwin"):
     i = spec.find("bundle_identifier=")
     assert i > 0
-    spec = spec[:i] + f"version='{get_pyzo_version()}',\n             " + spec[i:]
+    spec = f"{spec[:i]}version='{get_pyzo_version()}',\n             {spec[i:]}"
 
 with open(specfilename, "wb") as f:
     f.write(spec.encode())

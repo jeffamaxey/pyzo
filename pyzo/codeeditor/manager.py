@@ -114,16 +114,14 @@ class Manager:
         # Put in list with the parser names as keys
         parserInstances = {}
         for parserClass in foundParsers:
-            name = parserClass.getParserName()
-            if name:
-
+            if name := parserClass.getParserName():
                 # Try instantiating the parser
                 try:
                     parserInstances[name] = parserInstance = parserClass()
                 except Exception:
                     # We cannot get the exception object in a Python2/Python3
                     # compatible way
-                    print('Could not instantiate parser "%s".' % name)
+                    print(f'Could not instantiate parser "{name}".')
                     continue
 
                 # Register extensions and shebang keywords for this parser
@@ -159,13 +157,11 @@ class Manager:
         # Case insensitive
         parserName = parserName.lower()
 
-        # Return instantiated parser object.
         if parserName in cls._parserInstances:
             return cls._parserInstances[parserName]
-        else:
-            print('Warning: no parser known by the name "%s".' % parserName)
-            print("I know these: ", cls._parserInstances.keys())
-            return parsers.Parser()  # Default dummy parser
+        print(f'Warning: no parser known by the name "{parserName}".')
+        print("I know these: ", cls._parserInstances.keys())
+        return parsers.Parser()  # Default dummy parser
 
     @classmethod
     def getStyleElementDescriptionsForAllParsers(cls):
@@ -202,10 +198,7 @@ class Manager:
         ext = "." + ext.lstrip(".").lower()
 
         # Get parser
-        if ext in cls._fileExtensions:
-            return cls._fileExtensions[ext]
-        else:
-            return ""
+        return cls._fileExtensions[ext] if ext in cls._fileExtensions else ""
 
     @classmethod
     def suggestParserfromText(cls, text):

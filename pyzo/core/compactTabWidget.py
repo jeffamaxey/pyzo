@@ -141,9 +141,7 @@ class CompactTabBar(QtWidgets.QTabBar):
         # Get padding
         if isinstance(padding, (int, float)):
             padding = padding, padding, padding, padding
-        elif isinstance(padding, (tuple, list)):
-            pass
-        else:
+        elif not isinstance(padding, (tuple, list)):
             raise ValueError("Invalid value for padding.")
 
         # Set style sheet
@@ -326,8 +324,7 @@ class CompactTabBar(QtWidgets.QTabBar):
         # Get right edge of last tab and left edge of corner widget
         pos1 = self.tabRect(0).topLeft()
         pos2 = self.tabRect(N - 1).topRight()
-        cornerWidget = self.parent().cornerWidget()
-        if cornerWidget:
+        if cornerWidget := self.parent().cornerWidget():
             pos3 = cornerWidget.pos()
         else:
             pos3 = QtCore.QPoint(int(self.width()), 0)
@@ -366,9 +363,6 @@ class CompactTabBar(QtWidgets.QTabBar):
             if itemsElided and self._alignWidth < MAX_NAME_WIDTH:
                 self._alignTimer.start()
                 # self._alignTimer.timeout.emit()
-
-        else:
-            pass  # margin is good
 
     def _getAllNames(self):
         """_getAllNames()

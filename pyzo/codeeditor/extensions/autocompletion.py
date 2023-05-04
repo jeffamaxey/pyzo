@@ -119,12 +119,9 @@ class AutoCompletion(object):
         if self.__autocompleteDebug:
             print("autocompleteShow called")
 
-        if names is not None:
-            # TODO: a more intelligent implementation that adds new items and removes
-            # old ones
-            if names != self.__completerNames:
-                self.__completerModel.setStringList(names)
-                self.__completerNames = names
+        if names is not None and names != self.__completerNames:
+            self.__completerModel.setStringList(names)
+            self.__completerNames = names
 
         if (
             not self.autocompleteActive()
@@ -160,7 +157,7 @@ class AutoCompletion(object):
             try:
                 self.__cancelCallback()
             except Exception as err:
-                print("Exception in autocomp cancel callback: " + str(err))
+                print(f"Exception in autocomp cancel callback: {str(err)}")
 
     def onAutoComplete(self, text=None):
         if text is None:
@@ -287,16 +284,18 @@ class AutoCompletion(object):
         as normal. Return 2 if the autocompletion was performed, and the key
         should be consumed.
         """
-        if self.autocompleteActive():
-            if event.key() in self.__autocompletionAcceptKeys:
-                if event.key() <= 128:
-                    self.onAutoComplete()  # No arg: select last highlighted
-                    event.ignore()
-                    return 1  # Let key have effect as normal
-                elif event.modifiers() == Qt.NoModifier:
-                    # The key
-                    self.onAutoComplete()  # No arg: select last highlighted
-                    return 2  # Key should be consumed
+        if (
+            self.autocompleteActive()
+            and event.key() in self.__autocompletionAcceptKeys
+        ):
+            if event.key() <= 128:
+                self.onAutoComplete()  # No arg: select last highlighted
+                event.ignore()
+                return 1  # Let key have effect as normal
+            elif event.modifiers() == Qt.NoModifier:
+                # The key
+                self.onAutoComplete()  # No arg: select last highlighted
+                return 2  # Key should be consumed
         return 0
 
     def keyPressEvent(self, event):

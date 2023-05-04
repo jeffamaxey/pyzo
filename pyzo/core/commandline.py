@@ -90,16 +90,15 @@ def handle_command(command, arg):
 
     else:
         # Assume the user wanted to open a file
-        fname = (command + " " + arg).rstrip()
+        fname = f"{command} {arg}".rstrip()
         if not pyzo.editors:
             return "Still warming up ..."
-        else:
-            pyzo.callLater(pyzo.editors.loadFile, fname)
-            return "Try opening file %r" % fname
+        pyzo.callLater(pyzo.editors.loadFile, fname)
+        return "Try opening file %r" % fname
 
     # We should always return. So if we get here, it is a bug.
     # Return something so that we can be aware.
-    return "error " + command
+    return f"error {command}"
 
 
 def handle_cmd_args():
@@ -111,17 +110,14 @@ def handle_cmd_args():
     request = " ".join(arg for arg in args if not arg.startswith("--"))
     if "psn_" in request and not os.path.isfile(request):
         request = " ".join(args[1:])  # An OSX thing when clicking app icon
-    request = request.strip()
-    #
-    if not request:
+    if not (request := request.strip()):
         return None
-    else:
-        # Always send to server, even if we are the ones that run the server
-        try:
-            return do_request(ADDRESS, request, 0.4).rstrip()
-        except Exception as err:
-            print("Could not process command line args:\n%s" % str(err))
-            return None
+    # Always send to server, even if we are the ones that run the server
+    try:
+        return do_request(ADDRESS, request, 0.4).rstrip()
+    except Exception as err:
+        print("Could not process command line args:\n%s" % str(err))
+        return None
 
 
 def stop_our_server():

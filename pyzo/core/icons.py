@@ -202,17 +202,11 @@ class TabCloseButton(QtWidgets.QToolButton):
         return artist.finish().pixmap(*self.SIZE)
 
     def getCrossIcon1(self):
-        if hasattr(self, "_cross1"):
-            pm = self._cross1
-        else:
-            pm = self._createCrossPixmap(80)
+        pm = self._cross1 if hasattr(self, "_cross1") else self._createCrossPixmap(80)
         return QtGui.QIcon(pm)
 
     def getCrossIcon2(self):
-        if hasattr(self, "_cross2"):
-            pm = self._cross2
-        else:
-            pm = self._createCrossPixmap(240)
+        pm = self._cross2 if hasattr(self, "_cross2") else self._createCrossPixmap(240)
         # Set
         return QtGui.QIcon(pm)
 
@@ -350,10 +344,7 @@ class TabToolButtonWithCloseButton(TabToolButton):
     def _isOverCross(self, pos):
         x1, x2 = self.CROSS_OFFSET[0], self.CROSS_OFFSET[0] + 5 + 1
         y1, y2 = self.CROSS_OFFSET[1], self.CROSS_OFFSET[1] + 5 + 1
-        if pos.x() >= x1 and pos.x() <= x2 and pos.y() >= y1 and pos.y() <= y2:
-            return True
-        else:
-            return False
+        return pos.x() >= x1 and pos.x() <= x2 and pos.y() >= y1 and pos.y() <= y2
 
     def mousePressEvent(self, event):
         if self._isOverCross(event.pos()):
@@ -450,19 +441,18 @@ class TabToolButtonWithCloseButton(TabToolButton):
         return artist.finish().pixmap(5, 5)
 
     def getCrossPixmap1(self):
-        if hasattr(self, "_cross1"):
-            pm = self._cross1
-        else:
-            pm = self._createCrossPixmap(50)
-        return pm
+        return (
+            self._cross1
+            if hasattr(self, "_cross1")
+            else self._createCrossPixmap(50)
+        )
 
     def getCrossPixmap2(self):
-        if hasattr(self, "_cross2"):
-            pm = self._cross2
-        else:
-            pm = self._createCrossPixmap(240)
-        # Set
-        return pm
+        return (
+            self._cross2
+            if hasattr(self, "_cross2")
+            else self._createCrossPixmap(240)
+        )
 
 
 class EditorTabToolButton(TabToolButtonWithCloseButton):
@@ -669,11 +659,8 @@ class ShellIconMaker:
                 self.drawReady()
             elif self._status == "debug":
                 self.drawDebug()
-            elif self._status == "dead":
-                self.drawDead()
             else:
                 self.drawDead()
-
         elif self._level == 1:
             # Draw
             self.drawInMotion()

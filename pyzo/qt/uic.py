@@ -122,10 +122,7 @@ else:
 
             self.baseinstance = baseinstance
 
-            if customWidgets is None:
-                self.customWidgets = {}
-            else:
-                self.customWidgets = customWidgets
+            self.customWidgets = {} if customWidgets is None else customWidgets
 
         def createWidget(self, class_name, parent=None, name=""):
             """
@@ -138,32 +135,30 @@ else:
                 # instance instead
                 return self.baseinstance
 
+            # For some reason, Line is not in the list of available
+            # widgets, but works fine, so we have to special case it here.
+            if class_name in self.availableWidgets() or class_name == "Line":
+                # create a new widget for child widgets
+                widget = QUiLoader.createWidget(self, class_name, parent, name)
+
             else:
+                # If not in the list of availableWidgets, must be a custom
+                # widget. This will raise KeyError if the user has not
+                # supplied the relevant class_name in the dictionary or if
+                # customWidgets is empty.
+                try:
+                    widget = self.customWidgets[class_name](parent)
+                except KeyError as error:
+                    raise Exception(
+                        f"No custom widget {class_name} " "found in customWidgets"
+                    ) from error
 
-                # For some reason, Line is not in the list of available
-                # widgets, but works fine, so we have to special case it here.
-                if class_name in self.availableWidgets() or class_name == "Line":
-                    # create a new widget for child widgets
-                    widget = QUiLoader.createWidget(self, class_name, parent, name)
+            if self.baseinstance:
+                # set an attribute for the new child widget on the base
+                # instance, just like PyQt4.uic.loadUi does.
+                setattr(self.baseinstance, name, widget)
 
-                else:
-                    # If not in the list of availableWidgets, must be a custom
-                    # widget. This will raise KeyError if the user has not
-                    # supplied the relevant class_name in the dictionary or if
-                    # customWidgets is empty.
-                    try:
-                        widget = self.customWidgets[class_name](parent)
-                    except KeyError as error:
-                        raise Exception(
-                            f"No custom widget {class_name} " "found in customWidgets"
-                        ) from error
-
-                if self.baseinstance:
-                    # set an attribute for the new child widget on the base
-                    # instance, just like PyQt4.uic.loadUi does.
-                    setattr(self.baseinstance, name, widget)
-
-                return widget
+            return widget
 
     def _get_custom_widgets(ui_file):
         """
@@ -266,7 +261,7 @@ else:
 
             # Fetch the base_class and form class based on their type in the
             # xml from designer
-            form_class = frame["Ui_%s" % form_class]
+            form_class = frame[f"Ui_{form_class}"]
             base_class = getattr(QtWidgets, widget_class)
 
         return form_class, base_class

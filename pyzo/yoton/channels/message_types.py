@@ -219,7 +219,7 @@ class Packer:
                 self.pack_object(key)
                 self.pack_object(object[key])
         else:
-            raise ValueError("Unsupported type: %s" % repr(type(object)))
+            raise ValueError(f"Unsupported type: {repr(type(object))}")
 
 
 class Unpacker:
@@ -232,9 +232,8 @@ class Unpacker:
         i2 = self._pos + n
         if i2 > len(self._buf):
             raise EOFError
-        else:
-            self._pos = i2
-            return self._buf[i1:i2]
+        self._pos = i2
+        return self._buf[i1:i2]
 
     def read_number(self):
         (n,) = struct.unpack("<B", self.read(1))
@@ -247,10 +246,9 @@ class Unpacker:
         i2 = self._pos + n
         if i2 > len(self._buf):
             raise EOFError
-        else:
-            self._pos = i2
-            data = self._buf[i1:i2]
-            return struct.unpack(fmt, data)[0]
+        self._pos = i2
+        data = self._buf[i1:i2]
+        return struct.unpack(fmt, data)[0]
 
     def unpack_object(self):
 
@@ -268,23 +266,18 @@ class Unpacker:
             n = self.read_number()
             return self.read(n).decode("utf-8")
         elif object_type == _TYPE_LIST:
-            object = []
-            for i in range(self.read_number()):
-                object.append(self.unpack_object())
-            return object
+            return [self.unpack_object() for _ in range(self.read_number())]
         elif object_type == _TYPE_TUPLE:
-            object = []
-            for i in range(self.read_number()):
-                object.append(self.unpack_object())
+            object = [self.unpack_object() for _ in range(self.read_number())]
             return tuple(object)
         elif object_type == _TYPE_DICT:
             object = {}
-            for i in range(self.read_number()):
+            for _ in range(self.read_number()):
                 key = self.unpack_object()
                 object[key] = self.unpack_object()
             return object
         else:
-            raise ValueError("Unsupported type: %s" % repr(object_type))
+            raise ValueError(f"Unsupported type: {repr(object_type)}")
 
 
 # Define constants
@@ -296,10 +289,7 @@ OBJECT = ObjectMessageType()
 if __name__ == "__main__":
     # Test
 
-    s = {}
-    s["foo"] = 3
-    s["bar"] = 9
-    s["empty"] = []
+    s = {"foo": 3, "bar": 9, "empty": []}
     s[(2, "aa", 3)] = ["pretty", ("nice", "eh"), 4]
 
     bb = OBJECT.message_to_bytes(s)

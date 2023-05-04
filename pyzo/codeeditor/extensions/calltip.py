@@ -81,7 +81,7 @@ class Calltip(object):
         if highlightFunctionName:
             i = richText.find("(")
             if i > 0:
-                richText = "<b>{}</b>{}".format(richText[:i], richText[i:])
+                richText = f"<b>{richText[:i]}</b>{richText[i:]}"
 
         # Get a cursor to establish the position to show the calltip
         startcursor = self.textCursor()

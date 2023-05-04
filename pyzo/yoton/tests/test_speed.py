@@ -3,6 +3,7 @@ different package sizes.
 """
 
 
+
 # Go up one directory and then import the codeeditor package
 import os, sys
 
@@ -48,8 +49,8 @@ while size < maxSize:
     t0 = time.time()
 
     # Send messages
-    message = "T" * int(size)
-    for i in range(n):
+    message = "T" * size
+    for _ in range(n):
         c1.send(message)
     ct1.flush(20.0)
 
@@ -60,7 +61,7 @@ while size < maxSize:
     # them on another queue.
 
     # Receive messages
-    for i in range(n):
+    for _ in range(n):
         c2.recv()
 
     t2 = time.time()

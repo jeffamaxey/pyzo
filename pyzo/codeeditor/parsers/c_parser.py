@@ -122,11 +122,7 @@ class CParser(Parser):
     def _findEndOfComment(self, line, token):
         """Find the matching comment end in the rest of the line"""
 
-        # Do not use the start parameter of search, since ^ does not work then
-
-        endMatch = commentEndProg.search(line, token.end)
-
-        if endMatch:
+        if endMatch := commentEndProg.search(line, token.end):
             # The comment does end on this line
             token.end = endMatch.end()
             return [token]
@@ -138,23 +134,15 @@ class CParser(Parser):
     def _findEndOfString(self, line, token):
         """Find the matching string end in the rest of the line"""
 
-        # todo: distinguish between single and double quote strings
-
-        # Find the matching end in the rest of the line
-        # Do not use the start parameter of search, since ^ does not work then
-        endMatch = stringEndProg.search(line[token.end :])
-
-        if endMatch:
+        if endMatch := stringEndProg.search(line[token.end :]):
             # The string does end on this line
             token.end = token.end + endMatch.end()
             return [token]
         else:
-            # The string does not end on this line
-            if line.strip().endswith("\\"):  # Multi line string
-                token = StringToken(line, token.start, len(line))
-                return [token, BlockState(1)]
-            else:
+            if not line.strip().endswith("\\"):
                 return [UnterminatedStringToken(line, token.start, len(line))]
+            token = StringToken(line, token.start, len(line))
+            return [token, BlockState(1)]
 
     def _findNextToken(self, line, pos):
         """_findNextToken(line, pos):
@@ -175,9 +163,7 @@ class CParser(Parser):
         # or end of line
         nonIdentifierEnd = match.start() if match else len(line)
 
-        # Return the Non-Identifier token if non-null
-        token = NonIdentifierToken(line, pos, nonIdentifierEnd)
-        if token:
+        if token := NonIdentifierToken(line, pos, nonIdentifierEnd):
             tokens.append(token)
 
         # If no match, we are done processing the line
@@ -217,4 +203,4 @@ class CParser(Parser):
 if __name__ == "__main__":
     parser = CParser()
     for token in parser.parseLine("void test(int i=2) /* test "):
-        print("%s %s" % (token.name, token))
+        print(f"{token.name} {token}")

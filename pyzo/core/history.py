@@ -56,7 +56,7 @@ class CommandHistory(QtCore.QObject):
                         pass
 
         except Exception as e:
-            print("An error occurred while loading the history: " + str(e))
+            print(f"An error occurred while loading the history: {str(e)}")
 
     def save(self):
         """Save the commands to disk."""
@@ -123,8 +123,4 @@ class CommandHistory(QtCore.QObject):
         """Find all commands that contain the given text. In order
         of being used.
         """
-        commands = []
-        for c in reversed(self._commands):
-            if needle in c:
-                commands.append(c)
-        return commands
+        return [c for c in reversed(self._commands) if needle in c]

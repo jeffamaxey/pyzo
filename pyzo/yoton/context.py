@@ -135,8 +135,8 @@ class Context(object):
         """
 
         # Get all channels
-        channels1 = [c for c in self._sending_channels.values()]
-        channels2 = [c for c in self._receiving_channels.values()]
+        channels1 = list(self._sending_channels.values())
+        channels2 = list(self._receiving_channels.values())
 
         # Close all channels
         for c in set(channels1 + channels2):
@@ -254,11 +254,7 @@ class Context(object):
         # Split address in protocol, real hostname and port number
         protocol, hostname, port = split_address(address)
 
-        # Based on protocol, instantiate connection class (currently only tcp)
-        if False:  # protocol == 'itc':
-            connection = ItcConnection(self, name)
-        else:
-            connection = TcpConnection(self, name)
+        connection = TcpConnection(self, name)
 
         # Bind connection
         connection._bind(hostname, port, max_tries)
@@ -324,11 +320,7 @@ class Context(object):
         # Split address in protocol, real hostname and port number
         protocol, hostname, port = split_address(address)
 
-        # Based on protocol, instantiate connection class (currently only tcp)
-        if False:  # protocol == 'itc':
-            connection = ItcConnection(self, name)
-        else:
-            connection = TcpConnection(self, name)
+        connection = TcpConnection(self, name)
 
         # Create new connection and connect it
         connection._connect(hostname, port, timeout)
@@ -381,7 +373,7 @@ class Context(object):
 
         # Check if this slot is free
         if slot in self._sending_channels:
-            raise ValueError("Slot not free: " + str(slotname))
+            raise ValueError(f"Slot not free: {str(slotname)}")
 
         # Register
         self._sending_channels[slot] = channel
@@ -396,7 +388,7 @@ class Context(object):
 
         # Check if this slot is free
         if slot in self._receiving_channels:
-            raise ValueError("Slot not free: " + str(slotname))
+            raise ValueError(f"Slot not free: {str(slotname)}")
 
         # Register
         self._receiving_channels[slot] = channel
@@ -409,7 +401,7 @@ class Context(object):
 
         """
         for D in [self._receiving_channels, self._sending_channels]:
-            for key in [key for key in D.keys()]:
+            for key in list(D.keys()):
                 if D[key] == channel:
                     D.pop(key)
 
@@ -533,4 +525,4 @@ class Context(object):
                     channel.send_last()
 
         else:
-            print("Yoton: Received unknown context message: " + message)
+            print(f"Yoton: Received unknown context message: {message}")

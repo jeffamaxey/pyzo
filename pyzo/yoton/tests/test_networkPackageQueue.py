@@ -5,9 +5,9 @@ import time
 
 class Sender(threading.Thread):
     def run(self):
-        for i in range(100):
+        for _ in range(100):
             time.sleep(0.02)
-            q.push("haha! " + repr(self))
+            q.push(f"haha! {repr(self)}")
         q.push("stop")
 
 
@@ -45,13 +45,13 @@ class Receiver(threading.Thread):
 q = yoton.misc.TinyPackageQueue(10, 1000)
 
 S = []
-for i in range(10):
+for _ in range(10):
     t = Sender()
     t.start()
     S.append(t)
 
 R = []
-for i in range(3):
+for _ in range(3):
     t = Receiver()
     t.start()
     R.append(t)

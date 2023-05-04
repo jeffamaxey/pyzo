@@ -163,10 +163,7 @@ class _ParenIterator:
             if not self.cur_block.isValid():
                 raise StopIteration
             self.cur_tokens = self._getParenTokens()
-            if self.direction == 1:
-                self.cur_pos = 0
-            else:
-                self.cur_pos = len(self.cur_tokens) - 1
+            self.cur_pos = 0 if self.direction == 1 else len(self.cur_tokens) - 1
         return (
             self.cur_tokens[self.cur_pos]._style,
             self.cur_block.position() + self.cur_tokens[self.cur_pos].end,
@@ -303,7 +300,7 @@ class HighlightMatchingBracket(object):
             stacking = "([{"
             unstacking = ")]}"
         else:
-            raise ValueError("invalid bracket character: " + char)
+            raise ValueError(f"invalid bracket character: {char}")
 
         stacked_paren = [(char, cursor.position())]  # using a Python list as a stack
         # stack not empty because the _ParenIterator will not give back
@@ -324,7 +321,7 @@ class HighlightMatchingBracket(object):
                 else:
                     stacked_paren.pop()
 
-            if len(stacked_paren) == 0:
+            if not stacked_paren:
                 # we've found our match
                 return _MatchResult(_MatchStatus.Match, pos)
         return _MatchResult(_MatchStatus.NoMatch)
@@ -545,11 +542,7 @@ class IndentationGuides(object):
 
         # Get multiplication factor and indent width
         indentWidth = self.indentWidth()
-        if self.indentUsingSpaces():
-            factor = 1
-        else:
-            factor = indentWidth
-
+        factor = 1 if self.indentUsingSpaces() else indentWidth
         # Init painter
         painter = QtGui.QPainter()
         painter.begin(viewport)
@@ -571,7 +564,7 @@ class IndentationGuides(object):
                     w = self.fontMetrics().width("i" * x) + offset
                     w += 1  # Put it more under the block
                     if w > 0:  # if scrolled horizontally it can become < 0
-                        painter.drawLine(QtCore.QLine(int(w), int(y3), int(w), int(y4)))
+                        painter.drawLine(QtCore.QLine(w, int(y3), w, int(y4)))
 
         self.doForVisibleBlocks(paintIndentationGuides)
 
@@ -626,30 +619,6 @@ class CodeFolding(object):
         super(CodeFolding, self).paintEvent(event)
 
         return  # Code folding code is not yet complete
-
-        painter = QtGui.QPainter()
-        painter.begin(self.viewport())
-
-        margin = int(self.document().documentMargin())
-
-        def paintCodeFolders(cursor):
-            y = int(self.cursorRect(cursor).top())
-            h = int(self.cursorRect(cursor).height())
-            rect = QtCore.QRect(margin, y, h, h)
-            text = cursor.block().text()
-            if text.rstrip().endswith(":"):
-                painter.drawRect(rect)
-                painter.drawText(
-                    rect, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter, "-"
-                )
-                # Apply pen
-
-                # Paint
-                # painter.drawLine(QtCore.QLine(int(margin), int(y), int(w - 2*margin), int(y)))
-
-        self.doForVisibleBlocks(paintCodeFolders)
-
-        painter.end()
 
 
 class LongLineIndicator(object):
@@ -715,7 +684,7 @@ class LongLineIndicator(object):
         painter.setPen(pen)
 
         # Draw line and end painter
-        painter.drawLine(QtCore.QLine(int(x), 0, int(x), int(viewport.height())))
+        painter.drawLine(QtCore.QLine(x, 0, x, int(viewport.height())))
         painter.end()
 
         # Propagate event
@@ -855,10 +824,10 @@ class LineNumbers(object):
             offset = viewport.mapFromGlobal(tmp).y()
 
             # Draw the background
-            painter.fillRect(QtCore.QRect(0, int(y1), int(w), int(y2)), format.back)
+            painter.fillRect(QtCore.QRect(0, y1, int(w), int(y2)), format.back)
 
             # Get cursor
-            cursor = editor.cursorForPosition(QtCore.QPoint(0, int(y1)))
+            cursor = editor.cursorForPosition(QtCore.QPoint(0, y1))
 
             # Prepare fonts
             font1 = editor.font()
@@ -1085,7 +1054,7 @@ class BreakPoints(object):
             y1, y2 = 0, editor.height()
 
             # Draw the background
-            painter.fillRect(QtCore.QRect(0, int(y1), int(w), int(y2)), format.back)
+            painter.fillRect(QtCore.QRect(0, y1, int(w), int(y2)), format.back)
 
             # Get debug indicator and list of sorted breakpoints
             debugBlockIndicator = editor._debugLineIndicator - 1
@@ -1100,7 +1069,7 @@ class BreakPoints(object):
                 return
 
             # Get cursor
-            cursor = editor.cursorForPosition(QtCore.QPoint(0, int(y1)))
+            cursor = editor.cursorForPosition(QtCore.QPoint(0, y1))
 
             # Get start block number and bullet offset in pixels
             startBlockNumber = cursor.block().blockNumber()
@@ -1119,9 +1088,7 @@ class BreakPoints(object):
                 block = editor.document().findBlockByNumber(blockNumber)
                 if block.isValid():
                     y = editor.blockBoundingGeometry(block).y() + bulletOffset
-                    painter.drawEllipse(
-                        int(margin), int(y), int(bulletWidth), int(bulletWidth)
-                    )
+                    painter.drawEllipse(margin, int(y), int(bulletWidth), int(bulletWidth))
 
             # Draw *the* debug marker
             if debugBlockIndicator > 0:
@@ -1131,9 +1098,7 @@ class BreakPoints(object):
                 if block.isValid():
                     y = editor.blockBoundingGeometry(block).y() + bulletOffset
                     y += 0.25 * bulletWidth
-                    painter.drawEllipse(
-                        int(margin), int(y), int(bulletWidth), int(0.5 * bulletWidth)
-                    )
+                    painter.drawEllipse(margin, int(y), int(bulletWidth), int(0.5 * bulletWidth))
 
             # Draw other debug markers
             for debugLineIndicator in editor._debugLineIndicators:
@@ -1144,9 +1109,7 @@ class BreakPoints(object):
                 if block.isValid():
                     y = editor.blockBoundingGeometry(block).y() + bulletOffset
                     y += 0.25 * bulletWidth
-                    painter.drawEllipse(
-                        int(margin), int(y), int(bulletWidth), int(0.5 * bulletWidth)
-                    )
+                    painter.drawEllipse(margin, int(y), int(bulletWidth), int(0.5 * bulletWidth))
 
             # Draw virtual break point
             if virtualBreakpoint > 0:
@@ -1155,9 +1118,7 @@ class BreakPoints(object):
                 block = editor.document().findBlockByNumber(virtualBreakpoint)
                 if block.isValid():
                     y = editor.blockBoundingGeometry(block).y() + bulletOffset
-                    painter.drawEllipse(
-                        int(margin), int(y), int(bulletWidth), int(bulletWidth)
-                    )
+                    painter.drawEllipse(margin, int(y), int(bulletWidth), int(bulletWidth))
 
             # Done
             painter.end()
@@ -1185,28 +1146,28 @@ class BreakPoints(object):
             prev_ok = block.previous().blockNumber() == block_previous.blockNumber()
             next_ok = block.next().blockNumber() == block_next.blockNumber()
 
-            if prev_ok or next_ok:
-                if block_linenr == linenr:
-                    if prev_ok and next_ok:
-                        pass  # All is well
-                    else:
-                        # Update refs
-                        self._breakPoints[linenr] = (
-                            block,
-                            block.previous(),
-                            block.next(),
-                        )
-                else:
-                    # Update linenr - this is the only case where "move" th bp
-                    newBreakPoints[block_linenr] = self._breakPoints.pop(linenr)
+            if (
+                (prev_ok or next_ok)
+                and block_linenr == linenr
+                and prev_ok
+                and next_ok
+            ):
+                pass  # All is well
+            elif (
+                (prev_ok or next_ok)
+                and block_linenr == linenr
+                or not prev_ok
+                and not next_ok
+            ):
+                # Update refs
+                self._breakPoints[linenr] = (
+                    block,
+                    block.previous(),
+                    block.next(),
+                )
             else:
-                if block_linenr == linenr:
-                    # Just update refs
-                    self._breakPoints[linenr] = block, block.previous(), block.next()
-                else:
-                    # Delete breakpoint? Meh, just update refs
-                    self._breakPoints[linenr] = block, block.previous(), block.next()
-
+                # Update linenr - this is the only case where "move" th bp
+                newBreakPoints[block_linenr] = self._breakPoints.pop(linenr)
         if newBreakPoints:
             self._breakPoints.update(newBreakPoints)
             self.breakPointsChanged.emit(self)
@@ -1215,10 +1176,6 @@ class BreakPoints(object):
     def breakPoints(self):
         """A list of breakpoints for this editor."""
         return list(sorted(self._breakPoints))
-
-        self._breakPoints = {}
-        self.breakPointsChanged.emit(self)
-        self.__breakPointArea.update()
 
     def toggleBreakpoint(self, linenr=None):
         """Turn breakpoint on/off for given linenr of current line."""
@@ -1253,17 +1210,12 @@ class BreakPoints(object):
                 self._debugLineIndicators.discard(linenr)
                 self._debugLineIndicator = linenr
                 self.__breakPointArea.update()
-        else:
-            # Add to set of indicators
-            if linenr not in self._debugLineIndicators:
-                self._debugLineIndicators.add(linenr)
-                self.__breakPointArea.update()
+        elif linenr not in self._debugLineIndicators:
+            self._debugLineIndicators.add(linenr)
+            self.__breakPointArea.update()
 
     def getBreakPointAreaWidth(self):
-        if not self.__showBreakPoints:
-            return 0
-        else:
-            return self._breakPointWidth
+        return self._breakPointWidth if self.__showBreakPoints else 0
 
     def showBreakPoints(self):
         return self.__showBreakPoints
@@ -1301,7 +1253,7 @@ class Wrap(object):
     def wrap(self):
         """Enable or disable wrapping"""
         option = self.document().defaultTextOption()
-        return not bool(option.wrapMode() == option.NoWrap)
+        return option.wrapMode() != option.NoWrap
 
     @ce_option(True)
     def setWrap(self, value):

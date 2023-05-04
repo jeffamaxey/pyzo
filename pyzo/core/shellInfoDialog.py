@@ -52,9 +52,9 @@ class ShellInfo_exe(QtWidgets.QComboBox):
 
     def _interpreterName(self, p):
         if p.is_conda:
-            return "%s  [v%s, conda]" % (p.path, p.version)
+            return f"{p.path}  [v{p.version}, conda]"
         else:
-            return "%s  [v%s]" % (p.path, p.version)
+            return f"{p.path}  [v{p.version}]"
 
     def setTheText(self, value):
 
@@ -109,10 +109,7 @@ class ShellInfo_ipython(QtWidgets.QCheckBox):
             self.setChecked(True)
 
     def getTheText(self):
-        if self.isChecked():
-            return "yes"
-        else:
-            return "no"
+        return "yes" if self.isChecked() else "no"
 
 
 class ShellInfo_gui(QtWidgets.QComboBox):
@@ -153,7 +150,7 @@ class ShellInfo_gui(QtWidgets.QComboBox):
             gui, des = self.GUIS[i]
             if value == gui.upper():
                 ii = i
-            self.addItem("%s  -  %s" % (gui, des))
+            self.addItem(f"{gui}  -  {des}")
 
         # Set current text
         self.setCurrentIndex(ii)
@@ -368,9 +365,8 @@ class ShellInfo_startupScript(QtWidgets.QVBoxLayout):
             # System default
             if init:
                 self._radio_system.setChecked(True)
-            pp = os.environ.get("PYTHONSTARTUP", "").strip()
-            if pp:
-                value = '$PYTHONSTARTUP: "%s"' % pp
+            if pp := os.environ.get("PYTHONSTARTUP", "").strip():
+                value = f'$PYTHONSTARTUP: "{pp}"'
             else:
                 value = "$PYTHONSTARTUP: None"
             #
@@ -429,8 +425,7 @@ class ShellInfo_environ(QtWidgets.QTextEdit):
         return "\n".join([line.strip() for line in txt.splitlines()])
 
     def setTheText(self, value):
-        value = self._cleanText(value)
-        if value:
+        if value := self._cleanText(value):
             self.setText(value)
         else:
             self.setText(self.EXAMPLE)
@@ -438,10 +433,7 @@ class ShellInfo_environ(QtWidgets.QTextEdit):
     def getTheText(self):
         value = self.toPlainText()
         value = self._cleanText(value)
-        if value == self.EXAMPLE:
-            return ""
-        else:
-            return value
+        return "" if value == self.EXAMPLE else value
 
 
 ## The dialog class and container with tabs
@@ -486,7 +478,7 @@ class ShellInfoTab(QtWidgets.QScrollArea):
         # Collect classes of widgets to instantiate
         classes = []
         for t in self.INFO_KEYS:
-            className = "ShellInfo_" + t.key
+            className = f"ShellInfo_{t.key}"
             cls = globals()[className]
             classes.append((t, cls))
 

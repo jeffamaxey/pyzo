@@ -54,6 +54,7 @@ PySide6
 
 """
 
+
 from packaging.version import parse
 import os
 import platform
@@ -66,12 +67,8 @@ __version__ = "2.0.0.dev0"
 
 class PythonQtError(RuntimeError):
     """Error raised if no bindings could be selected."""
-
-
 class PythonQtWarning(Warning):
     """Warning if some features are not implemented in a binding."""
-
-
 # Qt API environment variable name
 QT_API = "QT_API"
 
@@ -176,14 +173,15 @@ if API in PYSIDE2_API:
 
         if sys.platform == "darwin":
             macos_version = parse(platform.mac_ver()[0])
-            if macos_version < parse("10.11"):
-                if parse(QT_VERSION) >= parse("5.11"):
-                    raise PythonQtError(
-                        "Qt 5.11 or higher only works in "
-                        "macOS 10.11 or higher. Your "
-                        "program will fail in this "
-                        "system."
-                    )
+            if macos_version < parse("10.11") and parse(QT_VERSION) >= parse(
+                "5.11"
+            ):
+                raise PythonQtError(
+                    "Qt 5.11 or higher only works in "
+                    "macOS 10.11 or higher. Your "
+                    "program will fail in this "
+                    "system."
+                )
 
             del macos_version
     except ImportError:
@@ -205,8 +203,7 @@ if API in PYSIDE6_API:
 # switches to another and informs through the warning
 if API != initial_api and binding_specified:
     warnings.warn(
-        'Selected binding "{}" could not be found, '
-        'using "{}"'.format(initial_api, API),
+        f'Selected binding "{initial_api}" could not be found, using "{API}"',
         RuntimeWarning,
     )
 

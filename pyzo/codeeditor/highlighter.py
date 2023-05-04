@@ -74,14 +74,14 @@ class Highlighter(QtGui.QSyntaxHighlighter):
         if hasattr(self._codeEditor, "parser"):
             parser = self._codeEditor.parser()
 
-        # Get function to get format
-        nameToFormat = self._codeEditor.getStyleElementFormat
-
         fullLineFormat = None
         tokens = []
         if parser:
             self.setCurrentBlockState(0)
             tokens = list(parser.parseLine(line, previousState))
+            # Get function to get format
+            nameToFormat = self._codeEditor.getStyleElementFormat
+
             for token in tokens:
                 # Handle block state
                 if isinstance(token, parsers.BlockState):

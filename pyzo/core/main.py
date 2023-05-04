@@ -104,13 +104,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.paintNow()
         self.restoreState()
 
-        # Present user with wizard if he/she is new.
-        if False:  # pyzo.config.state.newUser:
-            from pyzo.util.pyzowizard import PyzoWizard
-
-            w = PyzoWizard(self)
-            w.show()  # Use show() instead of exec_() so the user can interact with pyzo
-
         # Create new shell config if there is None
         if not pyzo.config.shellConfigs2:
             from pyzo.core.kernelbroker import KernelInfo
@@ -221,8 +214,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 pass
             elif name == path:
                 path = translate("main", "unsaved")
-            else:
-                pass  # We hope the given path is informative
             # Set title
             tmp = {
                 "fileName": name,
@@ -271,7 +262,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 geometry = base64.decodebytes(geometry.encode("ascii"))
                 self.restoreGeometry(geometry)
             except Exception as err:
-                print("Could not restore window geomerty: " + str(err))
+                print(f"Could not restore window geomerty: {str(err)}")
 
     def restoreState(self, value=None):
         # Restore layout of dock widgets and toolbars
@@ -286,7 +277,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 state = base64.decodebytes(state.encode("ascii"))
                 self.restoreState(state)
             except Exception as err:
-                print("Could not restore window state: " + str(err))
+                print(f"Could not restore window state: {str(err)}")
 
     def setQtStyle(self, stylename=None):
         """Set the style and the palette, based on the given style name.
@@ -350,16 +341,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # Stop command server
         commandline.stop_our_server()
 
-        # Proceed with closing...
-        result = pyzo.editors.closeAll()
-        if not result:
+        if result := pyzo.editors.closeAll():
+            self._closeflag = True
+        else:
             self._closeflag = False
             event.ignore()
             return
-        else:
-            self._closeflag = True
-            # event.accept()  # Had to comment on Windows+py3.3 to prevent error
-
         # Proceed with closing shells
         pyzo.localKernelManager.terminateAll()
 
@@ -403,7 +390,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if self._closeflag:
             # Get args
-            args = [arg for arg in sys.argv]
+            args = list(sys.argv)
 
             if not paths.is_frozen():
                 # Prepend the executable name (required on Linux)
@@ -440,9 +427,7 @@ class MainWindow(QtWidgets.QMainWindow):
             action.setChecked(bool(tool.instance))
             action.menuLauncher = tool.menuLauncher
 
-        # Show menu and process result
-        a = menu.popup(QtGui.QCursor.pos())
-        if a:
+        if a := menu.popup(QtGui.QCursor.pos()):
             a.menuLauncher(not a.menuLauncher(None))
 
 
@@ -505,7 +490,7 @@ def loadIcons():
                 pyzo.icons[name] = icon
             except Exception as err:
                 pyzo.icons[name] = dummyIcon
-                print("Could not load icon %s: %s" % (fname, str(err)))
+                print(f"Could not load icon {fname}: {str(err)}")
 
 
 def loadFonts():
@@ -532,7 +517,7 @@ def loadFonts():
                 try:
                     db.addApplicationFont(os.path.join(fontDir, fname))
                 except Exception as err:
-                    print("Could not load font %s: %s" % (fname, str(err)))
+                    print(f"Could not load font {fname}: {str(err)}")
 
 
 class _CallbackEventHandler(QtCore.QObject):
@@ -551,7 +536,7 @@ class _CallbackEventHandler(QtCore.QObject):
             try:
                 callback(*args)
             except Exception as why:
-                print("callback failed: {}:\n{}".format(callback, why))
+                print(f"callback failed: {callback}:\n{why}")
 
     def postEventWithCallback(self, callback, *args):
         self.queue.put((callback, args))

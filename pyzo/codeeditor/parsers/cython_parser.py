@@ -8,9 +8,16 @@
 from .python_parser import PythonParser, pythonKeywords
 
 # Set keywords
-cythonExtraKeywords = set(
-    ["cdef", "cpdef", "ctypedef", "cimport", "float", "double", "int", "long"]
-)
+cythonExtraKeywords = {
+    "cdef",
+    "cpdef",
+    "ctypedef",
+    "cimport",
+    "float",
+    "double",
+    "int",
+    "long",
+}
 
 
 class CythonParser(PythonParser):

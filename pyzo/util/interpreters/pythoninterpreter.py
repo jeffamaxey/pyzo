@@ -41,7 +41,7 @@ class PythonInterpreter:
 
     def __repr__(self):
         cls_name = self.__class__.__name__
-        return "<%s version %s at %s>" % (cls_name, self.version, self.path)
+        return f"<{cls_name} version {self.version} at {self.path}>"
 
     def __hash__(self):
         return hash(self._normpath)
@@ -126,11 +126,7 @@ class PythonInterpreter:
 
 
 def versionStringToTuple(version):
-    # Truncate version number to first occurance of non-numeric character
-    tversion = ""
-    for c in version:
-        if c in "0123456789.":
-            tversion += c
+    tversion = "".join(c for c in version if c in "0123456789.")
     # Split by dots, make each number an integer
     tversion = tversion.strip(".")
-    return tuple([int(a) for a in tversion.split(".") if a])
+    return tuple(int(a) for a in tversion.split(".") if a)

@@ -67,7 +67,7 @@ def normalizePath(path):
             print("Error normalizing path: Ambiguous path names!")
             return path
         elif not options:
-            print("Invalid path (part %s) in %s" % (part, fullpath))
+            print(f"Invalid path (part {part}) in {fullpath}")
             return path
         fullpath = os.path.join(fullpath, options[0])
 
@@ -209,12 +209,12 @@ class BaseTextCtrl(codeeditor.CodeEditor):
                 editor_text_theme = theme["editor.text"].split(",")
                 popup_background = editor_text_theme[1].split(":")[1]
                 popup_text = editor_text_theme[0].split(":")[1]
-                autoComplete_theme = "color: {}; background-color:{};".format(
-                    popup_text, popup_background
+                autoComplete_theme = (
+                    f"color: {popup_text}; background-color:{popup_background};"
                 )
                 self.completer().popup().setStyleSheet(autoComplete_theme)
         except Exception as err:
-            print("Could not load theme: " + str(err))
+            print(f"Could not load theme: {str(err)}")
 
         # Set font and zooming
         self.setFont(pyzo.config.view.fontname)
@@ -259,7 +259,7 @@ class BaseTextCtrl(codeeditor.CodeEditor):
         qtKeys = []
         for key in keys:
             if len(key) > 1:
-                key = "Key_" + key[0].upper() + key[1:].lower()
+                key = f"Key_{key[0].upper()}{key[1:].lower()}"
                 qtkey = getattr(QtCore.Qt, key, None)
             else:
                 qtkey = ord(key)
@@ -328,10 +328,9 @@ class BaseTextCtrl(codeeditor.CodeEditor):
         # strings, this is done by the processing of the tokens). Check for python style
 
         # Is the char valid for auto completion?
-        if tryAutoComp:
-            if not text or not (text[-1] in (Tokens.ALPHANUM + "._")):
-                self.autocompleteCancel()
-                tryAutoComp = False
+        if tryAutoComp and (not text or text[-1] not in f"{Tokens.ALPHANUM}._"):
+            self.autocompleteCancel()
+            tryAutoComp = False
 
         # Store line and (re)start timer
         cursor.setKeepPositionOnInsert(True)
@@ -360,7 +359,7 @@ class BaseTextCtrl(codeeditor.CodeEditor):
                 # Compose actual name
                 fullName = needle
                 if name:
-                    fullName = name + "." + needle
+                    fullName = f"{name}.{needle}"
                 # Process
                 offset = (
                     self._delayTimer._cursor.positionInBlock() - stats[0] + len(needle)
@@ -408,7 +407,7 @@ class BaseTextCtrl(codeeditor.CodeEditor):
             _, tokens = self.getTokensUpToCursor(cursor)
             nameBefore, name = parseLine_autocomplete(tokens)
             if nameBefore:
-                name = "%s.%s" % (nameBefore, name)
+                name = f"{nameBefore}.{name}"
         if name != "":
             hw.setObjectName(name, True)
 
@@ -428,19 +427,15 @@ class BaseTextCtrl(codeeditor.CodeEditor):
         if not hw or not shell:
             return
 
-        if not name:
-            # Obtain name from current cursor position
-
-            # Is this valid python?
-            if self._isValidPython():
-                # Obtain line from text
-                cursor = self.textCursor()
-                line = cursor.block().text()
-                text = line[: cursor.positionInBlock()]
-                # Obtain
-                nameBefore, name = parseLine_autocomplete(text)
-                if nameBefore:
-                    name = "%s.%s" % (nameBefore, name)
+        if not name and self._isValidPython():
+            # Obtain line from text
+            cursor = self.textCursor()
+            line = cursor.block().text()
+            text = line[: cursor.positionInBlock()]
+            # Obtain
+            nameBefore, name = parseLine_autocomplete(text)
+            if nameBefore:
+                name = f"{nameBefore}.{name}"
 
         if name:
             hw.helpFromCompletion(name, addToHist)
@@ -452,7 +447,7 @@ class BaseTextCtrl(codeeditor.CodeEditor):
         """A name has been highlighted, show help on that name"""
 
         if self._autoCompBuffer_name:
-            name = self._autoCompBuffer_name + "." + name
+            name = f"{self._autoCompBuffer_name}.{name}"
         elif not self.completer().completionPrefix():
             # Dont update help if there is no dot or prefix;
             # the choice would be arbitrary
@@ -463,8 +458,7 @@ class BaseTextCtrl(codeeditor.CodeEditor):
 
     @staticmethod
     def restoreHelp():
-        hw = pyzo.toolManager.getTool("pyzointeractivehelp")
-        if hw:
+        if hw := pyzo.toolManager.getTool("pyzointeractivehelp"):
             hw.restoreCurrent()
 
     def event(self, event):
@@ -474,15 +468,13 @@ class BaseTextCtrl(codeeditor.CodeEditor):
         window.
 
         """
-        if isinstance(event, QtGui.QKeyEvent):
-            # Ignore CTRL+{A-Z} since those keys are handled through the menu
-            if (
-                (event.modifiers() & QtCore.Qt.ControlModifier)
-                and (event.key() >= QtCore.Qt.Key_A)
-                and (event.key() <= QtCore.Qt.Key_Z)
-            ):
-                event.ignore()
-                return False
+        if isinstance(event, QtGui.QKeyEvent) and (
+            (event.modifiers() & QtCore.Qt.ControlModifier)
+            and (event.key() >= QtCore.Qt.Key_A)
+            and (event.key() <= QtCore.Qt.Key_Z)
+        ):
+            event.ignore()
+            return False
 
         # Default behavior
         codeeditor.CodeEditor.event(self, event)
@@ -494,30 +486,29 @@ class BaseTextCtrl(codeeditor.CodeEditor):
         or other stuff...
         """
 
-        # Get ordinal key
-        ordKey = -1
-        if event.text():
-            ordKey = ord(event.text()[0])
-
+        ordKey = ord(event.text()[0]) if event.text() else -1
         # Cancel any introspection in progress
         self._delayTimer._line = ""
 
         # Invoke autocomplete via tab key?
-        if event.key() == QtCore.Qt.Key_Tab and not self.autocompleteActive():
-            if pyzo.config.settings.autoComplete:
-                cursor = self.textCursor()
-                if cursor.position() == cursor.anchor():
-                    text = cursor.block().text()[: cursor.positionInBlock()]
-                    if text and (text[-1] in (Tokens.ALPHANUM + "._")):
-                        self.introspect(True, False)
-                        return
+        if (
+            event.key() == QtCore.Qt.Key_Tab
+            and not self.autocompleteActive()
+            and pyzo.config.settings.autoComplete
+        ):
+            cursor = self.textCursor()
+            if cursor.position() == cursor.anchor():
+                text = cursor.block().text()[: cursor.positionInBlock()]
+                if text and text[-1] in f"{Tokens.ALPHANUM}._":
+                    self.introspect(True, False)
+                    return
 
         super().keyPressEvent(event)
 
         # Analyse character/key to determine what introspection to fire
         if ordKey:
             if (
-                ordKey >= 48 or ordKey in [8, 46]
+                ordKey >= 48 or ordKey in {8, 46}
             ) and pyzo.config.settings.autoComplete == 1:
                 # If a char that allows completion or backspace or dot was pressed
                 self.introspect(True)
@@ -546,11 +537,10 @@ class CallTipObject:
         """
         bufferName = self.textCtrl._callTipBuffer_name
         t = time.time() - self.textCtrl._callTipBuffer_time
-        if self.bufferName == bufferName and t < 0:
-            self._finish(self.textCtrl._callTipBuffer_result)
-            return True
-        else:
+        if self.bufferName != bufferName or t >= 0:
             return False
+        self._finish(self.textCtrl._callTipBuffer_result)
+        return True
 
     def finish(self, callTipText):
         """finish(callTipText)
@@ -598,11 +588,10 @@ class AutoCompObject:
         """
         bufferName = self.textCtrl._autoCompBuffer_name
         t = time.time() - self.textCtrl._autoCompBuffer_time
-        if self.bufferName == bufferName and t < 0:
-            self._finish(self.textCtrl._autoCompBuffer_result)
-            return True
-        else:
+        if self.bufferName != bufferName or t >= 0:
             return False
+        self._finish(self.textCtrl._autoCompBuffer_result)
+        return True
 
     def finish(self):
         """finish()
@@ -626,10 +615,7 @@ class AutoCompObject:
         # I've once encountered a wrong autocomp list on an object, but
         # haven' been able to reproduce it. It was probably some odity.
         if timeout is None:
-            if self.bufferName:
-                timeout = 5
-            else:
-                timeout = 1
+            timeout = 5 if self.bufferName else 1
         # Get names
         if names is None:
             names = self.names
@@ -666,9 +652,10 @@ class AutoCompObject:
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
     win = BaseTextCtrl(None)
-    #     win.setStyle('.py')
-    tmp = "foo(bar)\nfor bar in range(5):\n  print bar\n"
-    tmp += "\nclass aap:\n  def monkey(self):\n    pass\n\n"
+    tmp = (
+        "foo(bar)\nfor bar in range(5):\n  print bar\n"
+        + "\nclass aap:\n  def monkey(self):\n    pass\n\n"
+    )
     tmp += "a\u20acb\n"
     win.setPlainText(tmp)
     win.show()

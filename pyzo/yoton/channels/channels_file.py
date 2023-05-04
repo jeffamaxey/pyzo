@@ -42,9 +42,8 @@ class FileWrapper(object):
     def __init__(self, channel, chunksize=0, echo=None, isatty=False):
         if not isinstance(channel, (PubChannel, SubChannel)):
             raise ValueError("FileWrapper needs a PubChannel or SubChannel.")
-        if echo is not None:
-            if not isinstance(echo, PubChannel):
-                raise ValueError("FileWrapper echo needs to be a PubChannel.")
+        if echo is not None and not isinstance(echo, PubChannel):
+            raise ValueError("FileWrapper echo needs to be a PubChannel.")
 
         self._channel = channel
         self._chunksize = int(chunksize)
@@ -110,10 +109,7 @@ class FileWrapper(object):
         res = self._channel.recv(block)
         if res and self._echo is not None:
             self._echo.send(res)
-        if PY2:
-            return res.encode("utf-8")
-        else:
-            return res
+        return res.encode("utf-8") if PY2 else res
 
     def write(self, message):
         """write(message)
@@ -179,10 +175,7 @@ class FileWrapper(object):
             line = line[:size]
 
         # Done
-        if PY2:
-            return line.encode("utf-8")
-        else:
-            return line
+        return line.encode("utf-8") if PY2 else line
 
     def isatty(self):
         """Get whether this is a terminal."""

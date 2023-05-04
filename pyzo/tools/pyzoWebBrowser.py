@@ -60,7 +60,7 @@ class WebView(QtWidgets.QTextBrowser):
 
     def _getUrlParts(self):
         r = urllib.parse.urlparse(self._url)
-        base = r.scheme + "://" + r.netloc
+        base = f"{r.scheme}://{r.netloc}"
         return base, r.path, r.fragment
 
     #
@@ -121,7 +121,7 @@ class WebView(QtWidgets.QTextBrowser):
             url = base + path + url
         elif "//" not in url:
             base, path, frag = self._getUrlParts()
-            url = base + "/" + url.lstrip("/")
+            url = f"{base}/" + url.lstrip("/")
 
         # Try loading
         self.loadStarted.emit()
@@ -181,10 +181,7 @@ class PyzoWebBrowser(QtWidgets.QFrame):
         self._address.setEditText("")
 
         # Create web view
-        if imported_qtwebkit:
-            self._view = QtWebKit.QWebView(self)
-        else:
-            self._view = WebView(self)
+        self._view = QtWebKit.QWebView(self) if imported_qtwebkit else WebView(self)
         #
         #         self._view.setZoomFactor(self._config.zoomFactor)
         #         settings = self._view.settings()
@@ -223,7 +220,7 @@ class PyzoWebBrowser(QtWidgets.QFrame):
 
     def parseAddress(self, address):
         if not address.startswith("http"):
-            address = "http://" + address
+            address = f"http://{address}"
         return address  # QtCore.QUrl(address, QtCore.QUrl.TolerantMode)
 
     def go(self, address=None):
@@ -259,12 +256,9 @@ class PyzoWebBrowser(QtWidgets.QFrame):
             steps = degrees / 15.0
             # Set factor
             factor = self._view.zoomFactor() + steps / 10.0
-            if factor < 0.25:
-                factor = 0.25
-            if factor > 4.0:
-                factor = 4.0
+            factor = max(factor, 0.25)
+            factor = min(factor, 4.0)
             # Store and apply
             self._config.zoomFactor = factor
-        #             self._view.setZoomFactor(factor)
         else:
             QtWidgets.QFrame.wheelEvent(self, event)

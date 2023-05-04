@@ -65,7 +65,7 @@ class TitledWidget(QtWidgets.QWidget):
         super().__init__()
         self.widget = other
         layout = QtWidgets.QHBoxLayout()
-        layout.addWidget(QtWidgets.QLabel(text=name.capitalize().strip() + " :"))
+        layout.addWidget(QtWidgets.QLabel(text=f"{name.capitalize().strip()} :"))
         layout.addWidget(other)
 
         self.setLayout(layout)
@@ -103,7 +103,7 @@ class ColorLineEdit(QtWidgets.QLineEdit):
         to the QLineEdit text
         """
         dlg = QtWidgets.QColorDialog(self)
-        dlg.setWindowTitle("Pick a color for the " + self.name.lower())
+        dlg.setWindowTitle(f"Pick a color for the {self.name.lower()}")
         dlg.setCurrentColor(QtGui.QColor(self.text()))
         dlg.currentColorChanged.connect(lambda clr: self.setText(clr.name()))
         dlg.setModal(False)
@@ -214,7 +214,7 @@ class StyleEdit(QtWidgets.QWidget):
     def __update(self, key, value):
         """this function is called everytime one of the children
         widget data has been modified by the user"""
-        self.styleChanged.emit(self.styleKey, key + ":" + value)
+        self.styleChanged.emit(self.styleKey, f"{key}:{value}")
 
     def setStyle(self, text):
         """updates every children to match the StyleFormat(text) fields"""
@@ -415,7 +415,7 @@ class ThemeEditorWidget(QtWidgets.QWidget):
 
         # Try to delete the old file if it exists (useful if it was renamed)
         try:
-            os.remove(os.path.join(dir, self.cur_theme_key + ".theme"))
+            os.remove(os.path.join(dir, f"{self.cur_theme_key}.theme"))
         except Exception:
             pass
 
@@ -423,9 +423,9 @@ class ThemeEditorWidget(QtWidgets.QWidget):
         # it doesn't accept dots, so we put underscore instead
         data = {x.replace(".", "_"): y for x, y in self.cur_theme["data"].items()}
 
-        fname = os.path.join(dir, themeName + ".theme")
+        fname = os.path.join(dir, f"{themeName}.theme")
         ssdf.save(fname, {"name": themeName, "data": data})
-        print("Saved theme '%s' to '%s'" % (themeName, fname))
+        print(f"Saved theme '{themeName}' to '{fname}'")
 
     def ok(self):
         """On user click saves the cur_theme if modified

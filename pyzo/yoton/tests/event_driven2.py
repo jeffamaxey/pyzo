@@ -33,8 +33,7 @@ ct2.connect("publichost:test")
 
 # Create message handler
 def message_handler():
-    message = sub.recv(False)
-    if message:
+    if message := sub.recv(False):
         print(message)
         if message.lower() == "stop":
             yoton.stop_event_loop()

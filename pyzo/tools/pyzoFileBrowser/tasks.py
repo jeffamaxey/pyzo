@@ -38,10 +38,7 @@ class SearchTask(proxies.Task):
             indices = self._getIndicesNormal1(searchText, pattern)
 
         # Return as lines
-        if indices:
-            return self._indicesToLines(text, indices)
-        else:
-            return []
+        return self._indicesToLines(text, indices) if indices else []
 
     def _getText(self, proxy):
 
@@ -57,9 +54,7 @@ class SearchTask(proxies.Task):
         size = size or 0
 
         # Search all Python files. Other files need be < xx bytes
-        if path.lower().endswith(".py") or size < 100 * 1024:
-            pass
-        else:
+        if not path.lower().endswith(".py") and size >= 100 * 1024:
             return None
 
         # Get text
@@ -73,10 +68,10 @@ class SearchTask(proxies.Task):
             return None
 
     def _getIndicesRegExp(self, text, pattern):
-        indices = []
-        for match in re.finditer(pattern, text, re.MULTILINE | re.UNICODE):
-            indices.append(match.start())
-        return indices
+        return [
+            match.start()
+            for match in re.finditer(pattern, text, re.MULTILINE | re.UNICODE)
+        ]
 
     def _getIndicesNormal1(self, text, pattern):
         indices = []
@@ -112,8 +107,7 @@ class SearchTask(proxies.Task):
             i1 = text.rfind(LE, 0, i)
             i2 = text.find(LE, i)
             # Get line and strip
-            if i1 < 0:
-                i1 = 0
+            i1 = max(i1, 0)
             line = text[i1:i2].strip()[:80]
             # Store
             lines.append((linenr, repr(line)))
@@ -191,9 +185,8 @@ class PeekTask(proxies.Task):
                 endMatch = stringEndProg.search(line)
                 if endMatch is None:
                     continue
-                else:
-                    pos = endMatch.end()
-                    stringEndProg = None
+                pos = endMatch.end()
+                stringEndProg = None
 
             # Now process all tokens
             while True:
@@ -206,9 +199,9 @@ class PeekTask(proxies.Task):
                     definitionMatch = self.definition.search(line[:end])
                     if definitionMatch is not None:
                         if definitionMatch.group(1) == "def":
-                            yield (linenr, "def " + definitionMatch.group(2))
+                            yield (linenr, f"def {definitionMatch.group(2)}")
                         else:
-                            yield (linenr, "class " + definitionMatch.group(2))
+                            yield (linenr, f"class {definitionMatch.group(2)}")
 
                 if match is None:
                     break  # Go to next line
@@ -216,18 +209,14 @@ class PeekTask(proxies.Task):
                     # comment
                     # yield 'C:'
                     break  # Go to next line
-                else:
-                    endMatch = self.endProgs[match.group()].search(line[match.end() :])
-                    if endMatch is None:
-                        if len(match.group()) == 3 or line.endswith("\\"):
-                            # Multi-line string
-                            stringEndProg = self.endProgs[match.group()]
-                            break
-                        else:  # incorrect end of single-quoted string
-                            break
-
-                    # yield 'S:' + (match.group() + line[match.end():][:endMatch.end()])
-                    pos = match.end() + endMatch.end()
+                endMatch = self.endProgs[match.group()].search(line[match.end() :])
+                if endMatch is None:
+                    if len(match.group()) == 3 or line.endswith("\\"):
+                        # Multi-line string
+                        stringEndProg = self.endProgs[match.group()]
+                    break
+                # yield 'S:' + (match.group() + line[match.end():][:endMatch.end()])
+                pos = match.end() + endMatch.end()
 
 
 class DocstringTask(proxies.Task):
@@ -281,9 +270,7 @@ class DocstringTask(proxies.Task):
             lines = lines[:16] + ["..."]
         # Make text and strip
         doc = "\n".join(lines)
-        doc = doc.strip()
-
-        return doc
+        return doc.strip()
 
 
 class RenameTask(proxies.Task):

@@ -60,9 +60,8 @@ def ce_option(arg1):
     default = DEFAULT_OPTION_NONE
     if hasattr(arg1, "__call__"):
         return decorator_fun(arg1)
-    else:
-        default = arg1
-        return decorator_fun
+    default = arg1
+    return decorator_fun
 
 
 class _CallbackEventHandler(QtCore.QObject):
@@ -81,7 +80,7 @@ class _CallbackEventHandler(QtCore.QObject):
             try:
                 callback(*args)
             except Exception as why:
-                print("callback failed: {}:\n{}".format(callback, why))
+                print(f"callback failed: {callback}:\n{why}")
 
     def postEventWithCallback(self, callback, *args):
         self.queue.put((callback, args))

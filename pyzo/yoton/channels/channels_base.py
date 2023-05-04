@@ -127,7 +127,7 @@ class BaseChannel(object):
                 slots_h.append(0)
                 continue
             # Get full name
-            slot = slot_base + "." + ext_type + "." + ext_pattern
+            slot = f"{slot_base}.{ext_type}.{ext_pattern}"
             # Store text version
             slots_t.append(slot)
             # Strip and make lowercase
@@ -249,10 +249,7 @@ class BaseChannel(object):
         # Set send lock variable. We adopt a timeout (10s) just in case
         # the SubChannel that locks the PubChannel gets disconnected and
         # is unable to unlock it.
-        if value:
-            self._is_send_locked = time.time() + 10.0
-        else:
-            self._is_send_locked = 0
+        self._is_send_locked = time.time() + 10.0 if value else 0
         # Notify any threads that are waiting in _send()
         if not value:
             self._send_condition.acquire()

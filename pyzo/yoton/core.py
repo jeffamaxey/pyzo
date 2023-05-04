@@ -310,10 +310,7 @@ class Package(object):
         # Create package
         p = Package(None, slot, source_id, source_seq, dest_id, dest_seq, 0)
         # Return
-        if CTRL == CONTROL_BYTES:
-            return p, L
-        else:
-            return None, None
+        return (p, L) if CTRL == CONTROL_BYTES else (None, None)
 
 
 # Constant Package instances (source_seq represents the signal)

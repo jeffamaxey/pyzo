@@ -196,47 +196,31 @@ class CodeEditorBase(QtWidgets.QPlainTextEdit):
         cyan = "#2aa198"
         green = "#859900"  # noqa
 
-        if True:  # Light vs dark
-            # back1, back2, back3 = base3, base2, base1 # real solarised
-            back1, back2, back3 = "#fff", base2, base1  # crispier
-            fore1, fore2, fore3, fore4 = base00, base01, base02, base03
-        else:
-            back1, back2, back3 = base03, base02, base01
-            fore1, fore2, fore3, fore4 = base0, base1, base2, base3  # noqa
-
+        # back1, back2, back3 = base3, base2, base1 # real solarised
+        back1, back2, back3 = "#fff", base2, base1  # crispier
+        fore1, fore2, fore3, fore4 = base00, base01, base02, base03
         # Define style using "Solarized" colors
-        S = {}
-        S["Editor.text"] = "back:%s, fore:%s" % (back1, fore1)
-        S["Syntax.identifier"] = "fore:%s, bold:no, italic:no, underline:no" % fore1
-        S["Syntax.nonidentifier"] = "fore:%s, bold:no, italic:no, underline:no" % fore2
-        S["Syntax.keyword"] = "fore:%s, bold:yes, italic:no, underline:no" % fore2
-
-        S["Syntax.builtins"] = "fore:%s, bold:no, italic:no, underline:no" % fore1
-        S["Syntax.instance"] = "fore:%s, bold:no, italic:no, underline:no" % fore1
-
-        S["Syntax.functionname"] = "fore:%s, bold:yes, italic:no, underline:no" % fore3
-        S["Syntax.classname"] = "fore:%s, bold:yes, italic:no, underline:no" % orange
-
-        S["Syntax.string"] = "fore:%s, bold:no, italic:no, underline:no" % violet
-        S["Syntax.unterminatedstring"] = (
-            "fore:%s, bold:no, italic:no, underline:dotted" % violet
-        )
-        S["Syntax.python.multilinestring"] = (
-            "fore:%s, bold:no, italic:no, underline:no" % blue
-        )
-
-        S["Syntax.number"] = "fore:%s, bold:no, italic:no, underline:no" % cyan
-        S["Syntax.comment"] = "fore:%s, bold:no, italic:no, underline:no" % yellow
-        S["Syntax.todocomment"] = "fore:%s, bold:no, italic:yes, underline:no" % magenta
-        S["Syntax.python.cellcomment"] = (
-            "fore:%s, bold:yes, italic:no, underline:full" % yellow
-        )
-
-        S["Editor.Long line indicator"] = "linestyle:solid, fore:%s" % back2
-        S["Editor.Highlight current line"] = "back:%s" % back2
-        S["Editor.Indentation guides"] = "linestyle:solid, fore:%s" % back2
-        S["Editor.Line numbers"] = "back:%s, fore:%s" % (back2, back3)
-
+        S = {
+            "Editor.text": f"back:{back1}, fore:{fore1}",
+            "Syntax.identifier": f"fore:{fore1}, bold:no, italic:no, underline:no",
+            "Syntax.nonidentifier": f"fore:{fore2}, bold:no, italic:no, underline:no",
+            "Syntax.keyword": f"fore:{fore2}, bold:yes, italic:no, underline:no",
+            "Syntax.builtins": f"fore:{fore1}, bold:no, italic:no, underline:no",
+            "Syntax.instance": f"fore:{fore1}, bold:no, italic:no, underline:no",
+            "Syntax.functionname": f"fore:{fore3}, bold:yes, italic:no, underline:no",
+            "Syntax.classname": f"fore:{orange}, bold:yes, italic:no, underline:no",
+            "Syntax.string": f"fore:{violet}, bold:no, italic:no, underline:no",
+            "Syntax.unterminatedstring": f"fore:{violet}, bold:no, italic:no, underline:dotted",
+            "Syntax.python.multilinestring": f"fore:{blue}, bold:no, italic:no, underline:no",
+            "Syntax.number": f"fore:{cyan}, bold:no, italic:no, underline:no",
+            "Syntax.comment": f"fore:{yellow}, bold:no, italic:no, underline:no",
+            "Syntax.todocomment": f"fore:{magenta}, bold:no, italic:yes, underline:no",
+            "Syntax.python.cellcomment": f"fore:{yellow}, bold:yes, italic:no, underline:full",
+            "Editor.Long line indicator": f"linestyle:solid, fore:{back2}",
+            "Editor.Highlight current line": f"back:{back2}",
+            "Editor.Indentation guides": f"linestyle:solid, fore:{back2}",
+            "Editor.Line numbers": f"back:{back2}, fore:{back3}",
+        }
         # Apply a good default style
         self.setStyle(S)
 
@@ -275,10 +259,10 @@ class CodeEditorBase(QtWidgets.QPlainTextEdit):
             if name.lower().startswith("set"):
                 name = name[3:]
             # Get setter and getter name
-            name_set = "set" + name[0].upper() + name[1:]
+            name_set = f"set{name[0].upper()}{name[1:]}"
             name_get = name[0].lower() + name[1:]
             # Check if both present
-            if not (name_set in names and name_get in names):
+            if name_set not in names or name_get not in names:
                 continue
             # Get members
             member_set = getattr(self, name_set)
@@ -363,14 +347,7 @@ class CodeEditorBase(QtWidgets.QPlainTextEdit):
         """
 
         # Process options
-        if options:
-            D = {}
-            for key in options:
-                D[key] = options[key]
-            D.update(kwargs)
-        else:
-            D = kwargs
-
+        D = {key: options[key] for key in options} | kwargs if options else kwargs
         # Get setters
         setters = self.__getOptionSetters()
 
@@ -404,11 +381,7 @@ class CodeEditorBase(QtWidgets.QPlainTextEdit):
 
         # Get family, fall back to default if qt could not produce monospace
         fontInfo = QtGui.QFontInfo(font)
-        if fontInfo.fixedPitch():
-            family = fontInfo.family()
-        else:
-            family = defaultFont.family()
-
+        family = fontInfo.family() if fontInfo.fixedPitch() else defaultFont.family()
         # Get size: default size + zoom
         size = defaultFont.pointSize() + self.__zoom
 
@@ -477,7 +450,7 @@ class CodeEditorBase(QtWidgets.QPlainTextEdit):
             elif isinstance(element, tuple):
                 element = StyleElementDescription(*element)
             else:
-                print("Warning: invalid element: " + repr(element))
+                print(f"Warning: invalid element: {repr(element)}")
             # Store using the name as a key to prevent duplicates
             elements2[element.key] = element
 
@@ -496,7 +469,7 @@ class CodeEditorBase(QtWidgets.QPlainTextEdit):
         try:
             return self.__style[key]
         except KeyError:
-            raise KeyError('Not a known style element name: "%s".' % name)
+            raise KeyError(f'Not a known style element name: "{name}".')
 
     def setStyle(self, style=None, **kwargs):
         """setStyle(style=None, **kwargs)
@@ -533,10 +506,9 @@ class CodeEditorBase(QtWidgets.QPlainTextEdit):
         if style:
             for key in style:
                 D[key] = style[key]
-        if True:
-            for key in kwargs:
-                key2 = key.replace("_", ".")
-                D[key2] = kwargs[key]
+        for key in kwargs:
+            key2 = key.replace("_", ".")
+            D[key2] = kwargs[key]
 
         # List of given invalid style element names
         invalidKeys = []

@@ -50,16 +50,15 @@ class ConnectionCollection(list):
     """
 
     def __getitem__(self, key):
-        if isinstance(key, basestring):
-            if not key:
-                raise KeyError("An empty string is not a valid key.")
-            for c in self:
-                if c.name == key:
-                    return c
-            else:
-                raise KeyError("No connection know by the name %s" % key)
-        else:
+        if not isinstance(key, basestring):
             return list.__getitem__(self, key)
+        if not key:
+            raise KeyError("An empty string is not a valid key.")
+        for c in self:
+            if c.name == key:
+                return c
+        else:
+            raise KeyError(f"No connection know by the name {key}")
 
 
 class Connection(object):
@@ -342,7 +341,7 @@ class Connection(object):
         # Notify user ++
         if self._context._verbose:
             tmp = STATUSMAP[old_status]
-            print("Yoton: %s connection closed: %s" % (tmp, reason))
+            print(f"Yoton: {tmp} connection closed: {reason}")
 
     #         if True:
     #             tmp = STATUSMAP[old_status]
@@ -382,7 +381,7 @@ class Connection(object):
             # Notify user ++
             if (status > 0) and self._context._verbose:
                 action = STATUSMAP[status]
-                print("Yoton: %s at %s:%s." % (action, self._hostname1, self._port1))
+                print(f"Yoton: {action} at {self._hostname1}:{self._port1}.")
 
         finally:
             self._lock.release()

@@ -125,14 +125,13 @@ def setLanguage(languageName):
         trans = QtCore.QTranslator()
         # Try loading both names
         for localeName in [localeName1, localeName2]:
-            success = trans.load(what + "_" + localeName + ".tr", where)
-            if success:
+            if success := trans.load(f"{what}_{localeName}.tr", where):
                 QtWidgets.QApplication.installTranslator(trans)
                 QtCore._translators.append(trans)
-                print("loading %s %s: ok" % (what, languageName))
+                print(f"loading {what} {languageName}: ok")
                 break
         else:
-            print("loading %s %s: failed" % (what, languageName))
+            print(f"loading {what} {languageName}: failed")
 
     # Done
     return locale
@@ -159,11 +158,10 @@ class Translation(str):
 
 
 def _splitMainAndTt(s):
-    if ":::" in s:
-        parts = s.split(":::", 1)
-        return parts[0].rstrip(), parts[1].lstrip()
-    else:
+    if ":::" not in s:
         return s, ""
+    parts = s.split(":::", 1)
+    return parts[0].rstrip(), parts[1].lstrip()
 
 
 def translate(context, text, disambiguation=None):
@@ -231,10 +229,10 @@ def linguist(languageName):
     locale = getLocale(languageName)
 
     # Get file to open
-    fname = "pyzo_{}.tr".format(locale.name())
+    fname = f"pyzo_{locale.name()}.tr"
     filename = os.path.join(pyzo.pyzoDir, "resources", "translations", fname)
     if not os.path.isfile(filename):
-        raise ValueError("Could not find {}".format(filename))
+        raise ValueError(f"Could not find {filename}")
 
     # PyQt5 does not come with linguist anymore? Install PySide2 and check the
     # pyside2 package directory for the linguist exe ...
@@ -261,15 +259,13 @@ def lupdate():
     filename = os.path.realpath(os.path.join(pyzo.pyzoDir, "..", fname))
     if not os.path.isfile(filename):
         raise ValueError(
-            "Could not find {}. This function must run from the source repo.".format(
-                fname
-            )
+            f"Could not find {fname}. This function must run from the source repo."
         )
 
     # Get Command for python lupdate
     pysideDir = os.path.abspath(os.path.dirname(pyzo.QtCore.__file__))
     ISWIN = sys.platform.startswith("win")
-    exe_ = "pylupdate" + pyzo.QtCore.__version__[0] + ".exe" * ISWIN
+    exe_ = f"pylupdate{pyzo.QtCore.__version__[0]}" + ".exe" * ISWIN
     exe = os.path.join(pysideDir, exe_)
     if not os.path.isfile(exe):
         exe = exe_
@@ -295,9 +291,7 @@ def lrelease():
     filename = os.path.realpath(os.path.join(pyzo.pyzoDir, "..", fname))
     if not os.path.isfile(filename):
         raise ValueError(
-            "Could not find {}. This function must run from the source repo.".format(
-                fname
-            )
+            f"Could not find {fname}. This function must run from the source repo."
         )
 
     # Get Command for lrelease
@@ -327,5 +321,5 @@ if __name__ == "__main__":
 
     print("Language data files:")
     for key in LANGUAGES:
-        s = "{}: {}".format(key, getLocale(key).name() + ".tr")
+        s = f"{key}: {getLocale(key).name()}.tr"
         print(s)

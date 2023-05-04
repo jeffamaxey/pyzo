@@ -66,10 +66,12 @@ def beginActivityWithOptions(options, reason=""):
 
     reason = msg(NSString, n("stringWithUTF8String:"), _utf8(reason))
     info = msg(NSProcessInfo, n("processInfo"))
-    activity = msg(
-        info, n("beginActivityWithOptions:reason:"), ull(options), void_p(reason)
+    return msg(
+        info,
+        n("beginActivityWithOptions:reason:"),
+        ull(options),
+        void_p(reason),
     )
-    return activity
 
 
 def endActivity(activity):

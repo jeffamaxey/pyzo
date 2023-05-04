@@ -199,11 +199,6 @@ def common_appdata_dir(appname=None):
         data_path = os.getenv("ALLUSERSPROFILE", os.getenv("PROGRAMDATA"))
     elif sys.platform.startswith("darwin"):
         data_path = "/Library/Application Support"
-    else:
-        # Not sure what to use. Apps are only allowed to write to the home
-        # dir and tmp dir, right?
-        pass
-
     # If no success, use appdata_dir() instead
     if not (data_path and os.path.isdir(data_path)):
         data_path = appdata_dir()[0]
@@ -240,13 +235,12 @@ def application_dir():
     if getattr(sys, "frozen", False):
         # When frozen, use sys.executable
         thepath = os.path.dirname(sys.executable)
-    else:
-        # Test if the current process can be considered an "application"
-        if not sys.path or not sys.path[0]:
-            raise RuntimeError(
-                "Cannot determine app path because sys.path[0] is empty!"
-            )
+    elif sys.path and sys.path[0]:
         thepath = sys.path[0]
+    else:
+        raise RuntimeError(
+            "Cannot determine app path because sys.path[0] is empty!"
+        )
     # Return absolute version, or symlinks may not work
     return os.path.abspath(thepath)
 
@@ -317,11 +311,14 @@ def pyzo_dirs2(path=None, version="0", **kwargs):
         pyzos = [tuple(d.split(":::")) for d in [d.strip() for d in lines] if d]
         npyzos = len(pyzos)
     # Add dir if necessary
-    if newPyzo and os.path.isdir(newPyzo[0]):
-        if kwargs.get("makelast", False) or newPyzo not in pyzos:
-            npyzos = 0  # force save
-            pyzos = [p for p in pyzos if p[0] != newPyzo[0]]  # rm based on dir
-            pyzos.append(newPyzo)
+    if (
+        newPyzo
+        and os.path.isdir(newPyzo[0])
+        and (kwargs.get("makelast", False) or newPyzo not in pyzos)
+    ):
+        npyzos = 0  # force save
+        pyzos = [p for p in pyzos if p[0] != newPyzo[0]]  # rm based on dir
+        pyzos.append(newPyzo)
     # Check validity of all pyzos, write back if necessary, and return
     pythonname = "python" + ".exe" * sys.platform.startswith("win")
     pyzos = [p for p in pyzos if os.path.isfile(os.path.join(p[0], pythonname))]

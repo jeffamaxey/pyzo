@@ -69,7 +69,7 @@ class PS1:
     def __str__(self):
         if self._pyzo._dbFrames:
             # When debugging, show where we are, do not use IPython prompt
-            preamble = "(" + self._pyzo._dbFrameName + ")"
+            preamble = f"({self._pyzo._dbFrameName})"
             return "\n\x1b[0;32m%s>>>\x1b[0m " % preamble
         elif self._pyzo._ipython:
             # IPython prompt
@@ -91,7 +91,7 @@ class PS2:
     def __str__(self):
         if self._pyzo._dbFrames:
             # When debugging, show where we are, do not use IPython prompt
-            preamble = "(" + self._pyzo._dbFrameName + ")"
+            preamble = f"({self._pyzo._dbFrameName})"
             return "\x1b[0;32m%s...\x1b[0m " % preamble
         elif self._pyzo._ipython:
             # Dots ala IPython
@@ -250,7 +250,7 @@ class PyzoInterpreter:
             builtins = __builtins__
         if not isinstance(builtins, dict):
             builtins = builtins.__dict__
-        startup_info["builtins"] = [builtin for builtin in builtins.keys()]
+        startup_info["builtins"] = list(builtins.keys())
         startup_info["version"] = tuple(sys.version_info)
         startup_info["keywords"] = keyword.kwlist
         # Update startup info, we update again at the end of this method
@@ -274,7 +274,7 @@ class PyzoInterpreter:
             import java.lang
 
             real_plat = java.lang.System.getProperty("os.name").lower()
-            plat = "%s/%s" % (sys.platform, real_plat)
+            plat = f"{sys.platform}/{real_plat}"
         elif sys.platform.startswith("win"):
             NBITS = 8 * struct.calcsize("P")
             plat = "Windows (%i bits)" % NBITS
@@ -292,7 +292,7 @@ class PyzoInterpreter:
         if True:
             pyzoBanner = "This is the Pyzo interpreter"
         if guiError:
-            pyzoBanner += ". " + guiError + "\n"
+            pyzoBanner += f". {guiError}" + "\n"
         elif guiName:
             pyzoBanner += " with integrated event loop for "
             pyzoBanner += guiName + ".\n"
@@ -359,7 +359,6 @@ class PyzoInterpreter:
 
             _nope.nope()
 
-        # Setup post-mortem debugging via appropriately logged exceptions
         class PMHandler(logging.Handler):
             def emit(self, record):
                 if record.exc_info:
@@ -394,10 +393,9 @@ class PyzoInterpreter:
 
         # Get whether we should (and can) run as script
         scriptFilename = startup_info["scriptFile"]
-        if scriptFilename:
-            if not os.path.isfile(scriptFilename):
-                printDirect('Invalid script file: "' + scriptFilename + '"\n')
-                scriptFilename = None
+        if scriptFilename and not os.path.isfile(scriptFilename):
+            printDirect(f'Invalid script file: "{scriptFilename}' + '"\n')
+            scriptFilename = None
 
         # Get project path
         projectPath = startup_info["projectPath"]
@@ -474,9 +472,6 @@ class PyzoInterpreter:
             # Run script
             self.context._stat_interpreter.send("Busy")
             self.runfile(script)
-        else:
-            # Nothing to run
-            pass
 
     def _integrate_gui(self, startup_info):
         """Integrate event loop of GUI toolkit (or use pure Python
@@ -535,17 +530,14 @@ class PyzoInterpreter:
             elif guiName == "GTK":
                 self.guiApp = guiintegration.App_gtk()
             else:
-                guiError = "Unkown gui: %s" % guiName
+                guiError = f"Unkown gui: {guiName}"
                 guiName = ""
         except Exception:  # Catch any error
             # Get exception info (we do it using sys.exc_info() because
             # we cannot catch the exception in a version independent way.
             type, value, tb = sys.exc_info()
             del tb
-            guiError = "Failed to integrate event loop for %s: %s" % (
-                guiName,
-                str(value),
-            )
+            guiError = f"Failed to integrate event loop for {guiName}: {str(value)}"
 
         return guiName, guiError
 
@@ -650,17 +642,16 @@ class PyzoInterpreter:
             ps = [sys.ps1, sys.ps2][bool(self.more)]
             self.context._strm_prompt.send(str(ps))
 
-        if True:
-            # Determine state. The message is really only send
-            # when the state is different. Note that the kernelbroker
-            # can also set the state ("Very busy", "Busy", "Dead")
-            if self._dbFrames:
-                self.context._stat_interpreter.send("Debug")
-            elif self.more:
-                self.context._stat_interpreter.send("More")
-            else:
-                self.context._stat_interpreter.send("Ready")
-            self.context._stat_cd.send(os.getcwd())
+        # Determine state. The message is really only send
+        # when the state is different. Note that the kernelbroker
+        # can also set the state ("Very busy", "Busy", "Dead")
+        if self._dbFrames:
+            self.context._stat_interpreter.send("Debug")
+        elif self.more:
+            self.context._stat_interpreter.send("More")
+        else:
+            self.context._stat_interpreter.send("Ready")
+        self.context._stat_cd.send(os.getcwd())
 
         # Are we still connected?
         if sys.stdin.closed or not self.context.connection_count:
@@ -678,9 +669,7 @@ class PyzoInterpreter:
             pass  # No messages waiting
 
         elif ch is self.context._ctrl_command:
-            # Read command
-            line1 = self.context._ctrl_command.recv(False)  # Command
-            if line1:
+            if line1 := self.context._ctrl_command.recv(False):
                 # Notify what we're doing
                 self.context._strm_echo.send(line1)
                 self.context._stat_interpreter.send("Busy")
@@ -697,9 +686,7 @@ class PyzoInterpreter:
                     self._resetbuffer()
 
         elif ch is self.context._ctrl_code:
-            # Read larger block of code (dict)
-            msg = self.context._ctrl_code.recv(False)
-            if msg:
+            if msg := self.context._ctrl_code.recv(False):
                 # Notify what we're doing
                 # (runlargecode() sends on stdin-echo)
                 self.context._stat_interpreter.send("Busy")
@@ -784,32 +771,27 @@ class PyzoInterpreter:
             error = sys.exc_info()[1]
             code = False
 
-        if use_ipython:
-            if code is None:
-                # Case 2
-                # self._ipython.run_cell('', True)
-                return True
-            else:
-                # Case 1 and 3 handled by IPython
-                self._ipython.run_cell(source, True, False)
-                return False
+        if use_ipython and code is None or not use_ipython and code is None:
+            # Case 2
+            # self._ipython.run_cell('', True)
+            return True
+        elif use_ipython:
+            # Case 1 and 3 handled by IPython
+            self._ipython.run_cell(source, True, False)
+            return False
 
+        elif not code:
+            # Case 1, a bit awkward way to show the error, but we need
+            # to call showsyntaxerror in an exception handler.
+            try:
+                raise error
+            except Exception:
+                self.showsyntaxerror(filename)
+            return False
         else:
-            if code is None:
-                # Case 2
-                return True
-            elif not code:
-                # Case 1, a bit awkward way to show the error, but we need
-                # to call showsyntaxerror in an exception handler.
-                try:
-                    raise error
-                except Exception:
-                    self.showsyntaxerror(filename)
-                return False
-            else:
-                # Case 3
-                self.execcode(code)
-                return False
+            # Case 3
+            self.execcode(code)
+            return False
 
     def runlargecode(self, msg, silent=False):
         """To execute larger pieces of code."""
@@ -922,7 +904,7 @@ class PyzoInterpreter:
             if source[-1] != "\n":
                 source += "\n"
         except Exception:
-            printDirect('Could not execute script: "' + fname + '"\n')
+            printDirect(f'Could not execute script: "{fname}' + '"\n')
             return
 
         # Try compiling the source
@@ -1001,11 +983,8 @@ class PyzoInterpreter:
                 self.apply_breakpoints()
                 self.debugger.set_on()
                 exec(code, self.locals)
-        except bdb.BdbQuit:
+        except (bdb.BdbQuit, Exception):
             self.dbstop_handler()
-        except Exception:
-            time.sleep(0.2)  # Give stdout some time to send data
-            self.showtraceback()
         except KeyboardInterrupt:  # is a BaseException, not an Exception
             time.sleep(0.2)
             self.showtraceback()
@@ -1025,7 +1004,7 @@ class PyzoInterpreter:
         except Exception:
             type, value, tb = sys.exc_info()
             del tb
-            print("Error while setting breakpoints: %s" % str(value))
+            print(f"Error while setting breakpoints: {str(value)}")
 
     ## Handlers and hooks
 
@@ -1041,7 +1020,7 @@ class PyzoInterpreter:
         if linenum:
             action = "open %i %s" % (linenum, os.path.abspath(filename))
         else:
-            action = "open %s" % os.path.abspath(filename)
+            action = f"open {os.path.abspath(filename)}"
         # Send
         self.context._strm_action.send(action)
 
@@ -1229,13 +1208,13 @@ class ExecutedSourceCollection:
             src = self._cache.get(filename, "")
             if src:
                 return [line + "\n" for line in src.splitlines()]
-            else:
-                import linecache
+            import linecache
 
-                if module_globals is None:
-                    return linecache._getlines(filename)  # only valid sig in 2.4
-                else:
-                    return linecache._getlines(filename, module_globals)
+            return (
+                linecache._getlines(filename)
+                if module_globals is None
+                else linecache._getlines(filename, module_globals)
+            )
 
         # Monkey patch
         import linecache

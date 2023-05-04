@@ -22,15 +22,12 @@ from pyzo.core import commandline
 
 if commandline.is_our_server_running():
     print("Started our command server")
+elif res := commandline.handle_cmd_args():
+    print(res)
+    sys.exit()
 else:
-    # Handle command line args now
-    res = commandline.handle_cmd_args()
-    if res:
-        print(res)
-        sys.exit()
-    else:
-        # No args, proceed with starting up
-        print("Our command server is *not* running")
+    # No args, proceed with starting up
+    print("Our command server is *not* running")
 
 
 from pyzo.util import zon as ssdf  # zon is ssdf-light
@@ -88,7 +85,7 @@ if not sys.platform.startswith("darwin"):
 
 
 def pyzo_excepthook(type, value, tb):
-    out = "Uncaught Python exception: " + str(value) + "\n"
+    out = f"Uncaught Python exception: {str(value)}" + "\n"
     out += "".join(traceback.format_list(traceback.extract_tb(tb)))
     out += "\n"
     sys.stderr.write(out)
@@ -157,7 +154,7 @@ def loadThemes():
                 pyzo.themes[theme.name.lower()] = theme
                 print("Loaded theme %r" % theme.name)
             except Exception as ex:
-                print("Warning ! Error while reading %s: %s" % (fname, ex))
+                print(f"Warning ! Error while reading {fname}: {ex}")
 
     loadThemesFromDir(os.path.join(pyzo.pyzoDir, "resources", "themes"), True)
     loadThemesFromDir(os.path.join(pyzo.appDataDir, "themes"))
