@@ -234,12 +234,10 @@ class Future(object):
         # Wait
         self._wait(timeout)
 
-        # Return
         if self._status == 4:
             return self._result
-        else:
-            self.cancel()
-            return None
+        self.cancel()
+        return None
 
     def exception(self, timeout=None):
         """exception(timeout)
@@ -528,7 +526,7 @@ class ReqChannel(BaseChannel):
         takes too long.
 
         """
-        for request_id in [key for key in self._request_items.keys()]:
+        for request_id in list(self._request_items.keys()):
             item = self._request_items[request_id]
             # Remove items that are really old
             if item.cancelled():
@@ -558,11 +556,8 @@ class ReqChannel(BaseChannel):
         request_id = package._dest_seq
 
         # Check dest_id
-        if not dest_id:
+        if not dest_id or dest_id != self._context._id:
             return  # We only want messages that are directed directly at us
-        elif dest_id != self._context._id:
-            return  # This should not happen; context should make sure
-
         if request_id > REQREP_SEQ_REF:
             # We received a reply to us asking who can handle the request.
             # Get item, send actual request. We set the replier to indicate
@@ -588,11 +583,7 @@ class ReqChannel(BaseChannel):
                 item._send("req-")
 
         elif request_id > 0:
-            # We received a reply to an actual request
-
-            # Get item, remove from queue, set reply, return
-            item = self._request_items.pop(request_id, None)
-            if item:
+            if item := self._request_items.pop(request_id, None):
                 item._rep = package._data
                 return item
 
@@ -610,8 +601,7 @@ class ReqChannel(BaseChannel):
 
         # Process all received messages
         while self.pending:
-            item = self._recv_item()
-            if item:
+            if item := self._recv_item():
                 reply = self.message_from_bytes(item._rep)
                 if (
                     isinstance(reply, tuple)
@@ -718,7 +708,7 @@ class RepChannel(BaseChannel):
 
         # Get function
         if not hasattr(self, name):
-            raise RuntimeError("Method '%s' not implemented." % name)
+            raise RuntimeError(f"Method '{name}' not implemented.")
         else:
             func = getattr(self, name)
 
@@ -770,7 +760,7 @@ class RepChannel(BaseChannel):
 
             # Remove pre-request from pending requests in case of both actions:
             # Cancel pending pre-request, prevent stacking of the same request.
-            for prereq in [prereq for prereq in self._pre_requests]:
+            for prereq in list(self._pre_requests):
                 if (
                     package._source_id == prereq._source_id
                     and package._dest_seq == prereq._dest_seq
@@ -807,17 +797,15 @@ class RepChannel(BaseChannel):
                 print("yoton.RepChannel: error handling request:")
                 print(reply[1])
 
-            # Send reply
-            if True:
-                try:
-                    bb = self.message_to_bytes(reply)
-                    self._send(bb, package._source_id, request_id)
-                except IOError:
-                    pass  # Channel is closed
-                except Exception:
-                    # Probably wrong type of reply returned by handle_request()
-                    print("Warning: request could not be send:")
-                    print(getErrorMsg())
+            try:
+                bb = self.message_to_bytes(reply)
+                self._send(bb, package._source_id, request_id)
+            except IOError:
+                pass  # Channel is closed
+            except Exception:
+                # Probably wrong type of reply returned by handle_request()
+                print("Warning: request could not be send:")
+                print(getErrorMsg())
 
     def _process_events_local(self, dummy=None):
         """_process_events_local()
@@ -833,8 +821,7 @@ class RepChannel(BaseChannel):
 
         # Iterate while we receive data
         while True:
-            package = self._recv(False)
-            if package:
+            if package := self._recv(False):
                 self._replier_iteration(package)
                 self._acknowledge_next_pre_request()
             else:
@@ -890,10 +877,6 @@ class ThreadForReqChannel(threading.Thread):
             if channel.closed or channel._run_mode != 2:
                 break
 
-            # Wait for data (blocking, look Rob, without spinlocks :)
-            package = channel._recv(2.0)
-            if package:
+            if package := channel._recv(2.0):
                 channel._replier_iteration(package)
-                channel._acknowledge_next_pre_request()
-            else:
-                channel._acknowledge_next_pre_request()
+            channel._acknowledge_next_pre_request()

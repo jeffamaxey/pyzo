@@ -136,16 +136,10 @@ class SelectFilePage(QtWidgets.QWizardPage):
         self.updatePreview()
 
     def updatePreview(self):
-        filename = self.txtFilename.text()
-        if not filename:
-            data = ""
-            self._isComplete = False
-            self.wizard().setPreviewData(None)
-        else:
+        if filename := self.txtFilename.text():
             try:
                 with open(filename, "rb") as file:
-                    maxsize = 5000
-                    data = file.read(maxsize)
+                    data = file.read(5000)
                     more = bool(file.read(1))  # See if there is more data available
 
                 data = data.decode("ascii", "replace")
@@ -161,6 +155,10 @@ class SelectFilePage(QtWidgets.QWizardPage):
                 self._isComplete = False
                 self.wizard().setPreviewData(None)
 
+        else:
+            data = ""
+            self._isComplete = False
+            self.wizard().setPreviewData(None)
         self.preview.setPlainText(data)
         self.completeChanged.emit()
 
@@ -223,9 +221,7 @@ class SetParametersPage(QtWidgets.QWizardPage):
 
     def columnNames(self):
         if self._columnNames is None:
-            return list(
-                ["d" + str(i + 1) for i in range(self.preview.columnCount() - 1)]
-            )
+            return [f"d{str(i + 1)}" for i in range(self.preview.columnCount() - 1)]
 
         return list(self._columnNames)
 
@@ -263,7 +259,7 @@ class SetParametersPage(QtWidgets.QWizardPage):
             if cell is not None:
                 comment = cell.text()[1:].strip()  # Remove comment char and whitespace
                 delimiter = self.cbxDelimiter.currentText()
-                names = list(name.strip() for name in comment.split(delimiter))
+                names = [name.strip() for name in comment.split(delimiter)]
 
                 # Ensure names is exactly columnCount long
                 names += [""] * columnCount
@@ -286,17 +282,17 @@ class SetParametersPage(QtWidgets.QWizardPage):
             )
 
             if not name:
-                return "d" + str(col)
+                return f"d{str(col)}"
 
             if name[0] >= "0" and name <= "9":
-                name = "d" + name
+                name = f"d{name}"
 
             if name in keywords:
-                name = name + "_"
+                name += "_"
 
             return name
 
-        names = list(fixname(name, i + 1) for i, name in enumerate(names))
+        names = [fixname(name, i + 1) for i, name in enumerate(names)]
 
         return names
 
@@ -311,10 +307,7 @@ class SetParametersPage(QtWidgets.QWizardPage):
 
         selected.sort()
 
-        if not selected:
-            return None
-        else:
-            return tuple(selected)
+        return tuple(selected) if selected else None
 
     def initializePage(self):
         self.updatePreview()

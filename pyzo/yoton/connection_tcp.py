@@ -86,8 +86,7 @@ class TcpConnection(Connection):
         # http://www.tcpipguide.com/free/t_TCPPortsConnectionsandConnectionIdentification-2.htm
         # Also get hostname and port for other end
         if bsd_socket is not None:
-            if True:
-                self._hostname1, self._port1 = bsd_socket.getsockname()
+            self._hostname1, self._port1 = bsd_socket.getsockname()
             if status != STATUS_WAITING:
                 self._hostname2, self._port2 = bsd_socket.getpeername()
 
@@ -201,9 +200,7 @@ class TcpConnection(Connection):
         s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, SOCKET_BUFFERS_SIZE)
 
         # Refuse rediculously low timeouts
-        if timeout <= 0.01:
-            timeout = 0.01
-
+        timeout = max(timeout, 0.01)
         # Try to connect
         ok = False
         timestamp = time.time() + timeout
@@ -233,7 +230,7 @@ class TcpConnection(Connection):
             self._set_status(0)
             if not info:
                 info = "problem during handshake"
-            raise IOError("Could not connect: " + info)
+            raise IOError(f"Could not connect: {info}")
 
         # Store id
         self._id2, self._pid2 = info
@@ -329,7 +326,7 @@ class HostThread(threading.Thread):
                 self._context_connection._id2 = info[0]
                 self._context_connection._pid2 = info[1]
             else:
-                print("Yoton: Handshake failed: " + info)
+                print(f"Yoton: Handshake failed: {info}")
                 continue
 
             # Success!
@@ -422,10 +419,7 @@ class HandShaker:
                 return False, STOP_HANDSHAKE_FAILED
             # Respond and return
             self._send_during_handshaking(message)  # returns error?
-            if id == id2:
-                return False, STOP_HANDSHAKE_SELF
-            else:
-                return True, (id2, pid2)
+            return (False, STOP_HANDSHAKE_SELF) if id == id2 else (True, (id2, pid2))
         else:
             # Client is not yoton
             self._send_during_handshaking("ERROR: this is Yoton.")
@@ -462,10 +456,7 @@ class HandShaker:
                 id2, pid2 = int(id2_str, 16), int(pid2_str, 10)
             except Exception:
                 return False, STOP_HANDSHAKE_FAILED
-            if id == id2:
-                return False, STOP_HANDSHAKE_SELF
-            else:
-                return True, (id2, pid2)
+            return (False, STOP_HANDSHAKE_SELF) if id == id2 else (True, (id2, pid2))
         else:
             return False, STOP_HANDSHAKE_FAILED
 
@@ -520,7 +511,7 @@ class BaseIOThread(threading.Thread):
         """
 
         # Get classname to use in messages
-        className = "yoton." + self.__class__.__name__
+        className = f"yoton.{self.__class__.__name__}"
 
         # Define function to write errors
         def writeErr(err):
@@ -535,21 +526,18 @@ class BaseIOThread(threading.Thread):
             # Was there a specific reason to stop?
             if stop_reason:
                 context_connection.close_on_problem(stop_reason)
-            else:
-                pass  # Stopped because the connection is gone (already stopped)
-
         except socket.error:
             # Socket error. Can happen if the other end closed not so nice
             # Do get the socket error message and pass it on.
             msg = STOP_SOCKET_ERROR + getErrorMsg()
-            context_connection.close_on_problem("%s, %s" % (className, msg))
+            context_connection.close_on_problem(f"{className}, {msg}")
 
         except Exception:
             # Else: woops, an error!
             errmsg = getErrorMsg()
             msg = STOP_THREAD_ERROR + errmsg
-            context_connection.close_on_problem("%s, %s" % (className, msg))
-            writeErr("Exception in %s." % className)
+            context_connection.close_on_problem(f"{className}, {msg}")
+            writeErr(f"Exception in {className}.")
             writeErr(errmsg)
 
 
@@ -620,7 +608,7 @@ class ReceivingThread(BaseIOThread):
                     ok = can_recv(bsd_socket, context_connection._timeout)
                 except Exception:
                     # select() has it's share of weird errors
-                    raise socket.error("select(): " + getErrorMsg())
+                    raise socket.error(f"select(): {getErrorMsg()}")
                 if ok:
                     # Set timedout ex?
                     if timedOut:
@@ -670,19 +658,13 @@ class ReceivingThread(BaseIOThread):
         if size == 0:
             # A special package! (or someone sending a
             # package with no content, which is discarted)
-            if package._source_seq == 0:
-                pass  # Heart beat
-            elif package._source_seq == 1:
-                return STOP_CLOSED_FROM_THERE
-            return None
-
-        else:
-            # Get package data
-            try:
-                package._data = self._recv_n_bytes(socket_recv, size)
-            except EOFError:
-                return STOP_EOF
-            return package
+            return STOP_CLOSED_FROM_THERE if package._source_seq == 1 else None
+        # Get package data
+        try:
+            package._data = self._recv_n_bytes(socket_recv, size)
+        except EOFError:
+            return STOP_EOF
+        return package
 
     def _recv_n_bytes(self, socket_recv, n):
         """Receive exactly n bytes from the socket."""

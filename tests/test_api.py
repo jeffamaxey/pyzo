@@ -24,7 +24,7 @@ def test_import1():
     assert "pyzo" in modules
 
     assert "pyzo.core" not in modules
-    assert not any(qt_lib in modules for qt_lib in qt_libs)
+    assert all(qt_lib not in modules for qt_lib in qt_libs)
 
     assert "pyzo.qt" not in modules
 

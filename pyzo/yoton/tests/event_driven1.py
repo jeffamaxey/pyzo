@@ -49,7 +49,7 @@ def reply_handler(future):
     if future.exception():
         # Calling result() would raise the exception, so lets just
         # print it and make up our own number
-        print("oops: " + str(future.exception()))
+        print(f"oops: {str(future.exception())}")
         number = 1
     elif future.cancelled():
         print("oops: request was cancelled.")

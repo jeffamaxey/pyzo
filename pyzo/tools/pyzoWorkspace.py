@@ -72,8 +72,7 @@ class WorkspaceProxy(QtCore.QObject):
         """
         self._name = name
 
-        shell = pyzo.shells.getCurrentShell()
-        if shell:
+        if shell := pyzo.shells.getCurrentShell():
             future = shell._request.dir2(self._name)
             future.add_done_callback(self.processResponse)
 
@@ -230,16 +229,12 @@ class WorkspaceTree(QtWidgets.QTreeWidget):
             self.onItemExpand(action._item)
 
         elif "help" in req:
-            # Show help in help tool (if loaded)
-            hw = pyzo.toolManager.getTool("pyzointeractivehelp")
-            if hw:
+            if hw := pyzo.toolManager.getTool("pyzointeractivehelp"):
                 hw.setObjectName(action._objectName, addToHist=True)
 
         elif "delete" in req:
-            # Delete the variable
-            shell = pyzo.shells.getCurrentShell()
-            if shell:
-                shell.processLine("del " + action._objectName)
+            if shell := pyzo.shells.getCurrentShell():
+                shell.processLine(f"del {action._objectName}")
 
     def onItemExpand(self, item):
         """onItemExpand(item)
@@ -293,7 +288,7 @@ class WorkspaceTree(QtWidgets.QTreeWidget):
             self.addTopLevelItem(item)
 
             # Set tooltip
-            tt = "%s: %s" % (parts[0], parts[-1])
+            tt = f"{parts[0]}: {parts[-1]}"
             item.setToolTip(0, tt)
             item.setToolTip(1, tt)
             item.setToolTip(2, tt)

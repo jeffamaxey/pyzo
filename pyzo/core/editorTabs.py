@@ -43,11 +43,7 @@ def simpleDialog(item, action, question, options, defaultOption):
     """
 
     # Get filename
-    if isinstance(item, FileItem):
-        filename = item.id
-    else:
-        filename = item.id()
-
+    filename = item.id if isinstance(item, FileItem) else item.id()
     # create button map
     mb = QtWidgets.QMessageBox
     M = {
@@ -74,7 +70,7 @@ def simpleDialog(item, action, question, options, defaultOption):
     # setup dialog
     dlg = QtWidgets.QMessageBox(pyzo.main)
     dlg.setWindowTitle("Pyzo")
-    dlg.setText(action + " file:\n{}".format(filename))
+    dlg.setText(f"{action} file:\n{filename}")
     dlg.setInformativeText(question)
 
     # process options
@@ -94,10 +90,7 @@ def simpleDialog(item, action, question, options, defaultOption):
     # get result
     dlg.exec_()
     button = dlg.clickedButton()
-    if button in buttons:
-        return buttons[button]
-    else:
-        return None
+    return buttons.get(button, None)
 
 
 def get_shortest_unique_filename(filename, filenames):
@@ -114,7 +107,7 @@ def get_shortest_unique_filename(filename, filenames):
 
     # Prepare for finding uniqueness
     nameparts1 = filename1.split("/")
-    uniqueness = [len(filenames) for i in nameparts1]
+    uniqueness = [len(filenames) for _ in nameparts1]
 
     # Establish what parts of the filename are not unique when compared to
     # each entry in filenames.
@@ -138,7 +131,7 @@ def get_shortest_unique_filename(filename, filenames):
     # Produce display name based on base name and last most-unique part
     displayname = nameparts1[-1]
     for i in reversed(range(len(uniqueness) - 1)):
-        displayname = "/" + displayname
+        displayname = f"/{displayname}"
         if uniqueness[i] == max_uniqueness:
             displayname = nameparts1[i] + displayname
             break
@@ -171,10 +164,7 @@ class FileItem:
     def id(self):
         """Get an id of this editor. This is the filename,
         or for tmp files, the name."""
-        if self.filename:
-            return self.filename
-        else:
-            return self.name
+        return self.filename if self.filename else self.name
 
     @property
     def filename(self):
@@ -218,134 +208,125 @@ class FindReplaceWidget(QtWidgets.QFrame):
         self._findText = QtWidgets.QLineEdit(self)
         self._replaceText = QtWidgets.QLineEdit(self)
 
-        if True:
-            # Create sub layouts
-            vsubLayout = QtWidgets.QVBoxLayout()
-            vsubLayout.setSpacing(0)
-            layout.addLayout(vsubLayout, 0)
+        # Create sub layouts
+        vsubLayout = QtWidgets.QVBoxLayout()
+        vsubLayout.setSpacing(0)
+        layout.addLayout(vsubLayout, 0)
 
-            # Add button
-            self._hidebut.setFont(QtGui.QFont("helvetica", 7))
-            self._hidebut.setToolTip(translate("search", "Hide search widget (Escape)"))
-            self._hidebut.setIcon(pyzo.icons.cancel)
-            self._hidebut.setIconSize(QtCore.QSize(16, 16))
-            vsubLayout.addWidget(self._hidebut, 0)
+        # Add button
+        self._hidebut.setFont(QtGui.QFont("helvetica", 7))
+        self._hidebut.setToolTip(translate("search", "Hide search widget (Escape)"))
+        self._hidebut.setIcon(pyzo.icons.cancel)
+        self._hidebut.setIconSize(QtCore.QSize(16, 16))
+        vsubLayout.addWidget(self._hidebut, 0)
 
-            vsubLayout.addStretch(1)
-
-        layout.addSpacing(10)
-
-        if True:
-
-            # Create sub layouts
-            vsubLayout = QtWidgets.QVBoxLayout()
-            hsubLayout = QtWidgets.QHBoxLayout()
-            vsubLayout.setSpacing(0)
-            hsubLayout.setSpacing(0)
-            layout.addLayout(vsubLayout, 0)
-
-            # Add find text
-            self._findText.setToolTip(translate("search", "Find pattern"))
-            vsubLayout.addWidget(self._findText, 0)
-
-            vsubLayout.addLayout(hsubLayout)
-
-            # Add previous button
-            self._findPrev = QtWidgets.QToolButton(self)
-            t = translate(
-                "search", "Previous ::: Find previous occurrence of the pattern."
-            )
-            self._findPrev.setText(t)
-            self._findPrev.setToolTip(t.tt)
-
-            hsubLayout.addWidget(self._findPrev, 0)
-
-            hsubLayout.addStretch(1)
-
-            # Add next button
-            self._findNext = QtWidgets.QToolButton(self)
-            t = translate("search", "Next ::: Find next occurrence of the pattern.")
-            self._findNext.setText(t)
-            self._findNext.setToolTip(t.tt)
-            # self._findNext.setDefault(True) # Not possible with tool buttons
-            hsubLayout.addWidget(self._findNext, 0)
+        vsubLayout.addStretch(1)
 
         layout.addSpacing(10)
 
-        if True:
+        # Create sub layouts
+        vsubLayout = QtWidgets.QVBoxLayout()
+        hsubLayout = QtWidgets.QHBoxLayout()
+        vsubLayout.setSpacing(0)
+        hsubLayout.setSpacing(0)
+        layout.addLayout(vsubLayout, 0)
 
-            # Create sub layouts
-            vsubLayout = QtWidgets.QVBoxLayout()
-            hsubLayout = QtWidgets.QHBoxLayout()
-            vsubLayout.setSpacing(0)
-            hsubLayout.setSpacing(0)
-            layout.addLayout(vsubLayout, 0)
+        # Add find text
+        self._findText.setToolTip(translate("search", "Find pattern"))
+        vsubLayout.addWidget(self._findText, 0)
 
-            # Add replace text
-            self._replaceText.setToolTip(translate("search", "Replace pattern"))
-            vsubLayout.addWidget(self._replaceText, 0)
+        vsubLayout.addLayout(hsubLayout)
 
-            vsubLayout.addLayout(hsubLayout)
+        # Add previous button
+        self._findPrev = QtWidgets.QToolButton(self)
+        t = translate(
+            "search", "Previous ::: Find previous occurrence of the pattern."
+        )
+        self._findPrev.setText(t)
+        self._findPrev.setToolTip(t.tt)
 
-            # Add replace button
-            t = translate("search", "Replace ::: Replace this match.")
-            self._replaceBut = QtWidgets.QToolButton(self)
-            self._replaceBut.setText(t)
-            self._replaceBut.setToolTip(t.tt)
-            hsubLayout.addWidget(self._replaceBut, 0)
+        hsubLayout.addWidget(self._findPrev, 0)
 
-            hsubLayout.addStretch(1)
+        hsubLayout.addStretch(1)
 
-            # Add replace kind combo
-            self._replaceKind = QtWidgets.QComboBox(self)
-            self._replaceKind.addItem(translate("search", "one"))
-            self._replaceKind.addItem(translate("search", "all in this file"))
-            self._replaceKind.addItem(translate("search", "all in all files"))
-            hsubLayout.addWidget(self._replaceKind, 0)
+        # Add next button
+        self._findNext = QtWidgets.QToolButton(self)
+        t = translate("search", "Next ::: Find next occurrence of the pattern.")
+        self._findNext.setText(t)
+        self._findNext.setToolTip(t.tt)
+        # self._findNext.setDefault(True) # Not possible with tool buttons
+        hsubLayout.addWidget(self._findNext, 0)
 
         layout.addSpacing(10)
 
-        if True:
+        # Create sub layouts
+        vsubLayout = QtWidgets.QVBoxLayout()
+        hsubLayout = QtWidgets.QHBoxLayout()
+        vsubLayout.setSpacing(0)
+        hsubLayout.setSpacing(0)
+        layout.addLayout(vsubLayout, 0)
 
-            # Create sub layouts
-            vsubLayout = QtWidgets.QVBoxLayout()
-            vsubLayout.setSpacing(0)
-            layout.addLayout(vsubLayout, 0)
+        # Add replace text
+        self._replaceText.setToolTip(translate("search", "Replace pattern"))
+        vsubLayout.addWidget(self._replaceText, 0)
 
-            # Add match-case checkbox
-            t = translate("search", "Match case ::: Find words that match case.")
-            self._caseCheck = QtWidgets.QCheckBox(t, self)
-            self._caseCheck.setToolTip(t.tt)
-            vsubLayout.addWidget(self._caseCheck, 0)
+        vsubLayout.addLayout(hsubLayout)
 
-            # Add regexp checkbox
-            t = translate("search", "RegExp ::: Find using regular expressions.")
-            self._regExp = QtWidgets.QCheckBox(t, self)
-            self._regExp.setToolTip(t.tt)
-            vsubLayout.addWidget(self._regExp, 0)
+        # Add replace button
+        t = translate("search", "Replace ::: Replace this match.")
+        self._replaceBut = QtWidgets.QToolButton(self)
+        self._replaceBut.setText(t)
+        self._replaceBut.setToolTip(t.tt)
+        hsubLayout.addWidget(self._replaceBut, 0)
 
-        if True:
+        hsubLayout.addStretch(1)
 
-            # Create sub layouts
-            vsubLayout = QtWidgets.QVBoxLayout()
-            vsubLayout.setSpacing(0)
-            layout.addLayout(vsubLayout, 0)
+        # Add replace kind combo
+        self._replaceKind = QtWidgets.QComboBox(self)
+        self._replaceKind.addItem(translate("search", "one"))
+        self._replaceKind.addItem(translate("search", "all in this file"))
+        self._replaceKind.addItem(translate("search", "all in all files"))
+        hsubLayout.addWidget(self._replaceKind, 0)
 
-            # Add whole-word checkbox
-            t = translate("search", "Whole words ::: Find only whole words.")
-            self._wholeWord = QtWidgets.QCheckBox(t, self)
-            self._wholeWord.setToolTip(t.tt)
-            self._wholeWord.resize(60, 16)
-            vsubLayout.addWidget(self._wholeWord, 0)
+        layout.addSpacing(10)
 
-            # Add autohide dropbox
-            t = translate(
-                "search", "Auto hide ::: Hide search/replace when unused for 10 s."
-            )
-            self._autoHide = QtWidgets.QCheckBox(t, self)
-            self._autoHide.setToolTip(t.tt)
-            self._autoHide.resize(60, 16)
-            vsubLayout.addWidget(self._autoHide, 0)
+        # Create sub layouts
+        vsubLayout = QtWidgets.QVBoxLayout()
+        vsubLayout.setSpacing(0)
+        layout.addLayout(vsubLayout, 0)
+
+        # Add match-case checkbox
+        t = translate("search", "Match case ::: Find words that match case.")
+        self._caseCheck = QtWidgets.QCheckBox(t, self)
+        self._caseCheck.setToolTip(t.tt)
+        vsubLayout.addWidget(self._caseCheck, 0)
+
+        # Add regexp checkbox
+        t = translate("search", "RegExp ::: Find using regular expressions.")
+        self._regExp = QtWidgets.QCheckBox(t, self)
+        self._regExp.setToolTip(t.tt)
+        vsubLayout.addWidget(self._regExp, 0)
+
+        # Create sub layouts
+        vsubLayout = QtWidgets.QVBoxLayout()
+        vsubLayout.setSpacing(0)
+        layout.addLayout(vsubLayout, 0)
+
+        # Add whole-word checkbox
+        t = translate("search", "Whole words ::: Find only whole words.")
+        self._wholeWord = QtWidgets.QCheckBox(t, self)
+        self._wholeWord.setToolTip(t.tt)
+        self._wholeWord.resize(60, 16)
+        vsubLayout.addWidget(self._wholeWord, 0)
+
+        # Add autohide dropbox
+        t = translate(
+            "search", "Auto hide ::: Hide search/replace when unused for 10 s."
+        )
+        self._autoHide = QtWidgets.QCheckBox(t, self)
+        self._autoHide.setToolTip(t.tt)
+        self._autoHide.resize(60, 16)
+        vsubLayout.addWidget(self._autoHide, 0)
 
         layout.addStretch(1)
 
@@ -406,23 +387,23 @@ class FindReplaceWidget(QtWidgets.QFrame):
     def autoHideTimerCallback(self):
         """Check whether we should hide the tool."""
         timeout = pyzo.config.advanced.find_autoHide_timeout
-        if self._autoHide.isChecked():
-            if (time.time() - self._timerAutoHide_t0) > timeout:  # seconds
-                # Hide if editor has focus
-                self._replaceKind.setCurrentIndex(0)  # set replace to "one"
-                es = self.parent()  # editor stack
-                editor = es.getCurrentEditor()
-                if editor and editor.hasFocus():
-                    self.hide()
+        if (
+            self._autoHide.isChecked()
+            and (time.time() - self._timerAutoHide_t0) > timeout
+        ):
+            # Hide if editor has focus
+            self._replaceKind.setCurrentIndex(0)  # set replace to "one"
+            es = self.parent()  # editor stack
+            editor = es.getCurrentEditor()
+            if editor and editor.hasFocus():
+                self.hide()
 
     def hideMe(self):
         """Hide the find/replace widget."""
         self.hide()
         self._replaceKind.setCurrentIndex(0)  # set replace to "one"
         es = self.parent()  # editor stack
-        # es._boxLayout.activate()
-        editor = es.getCurrentEditor()
-        if editor:
+        if editor := es.getCurrentEditor():
             editor.setFocus()
 
     def event(self, event):
@@ -454,11 +435,12 @@ class FindReplaceWidget(QtWidgets.QFrame):
         self.show()
         self.autoHideTimerReset()
 
-        # get needle
-        editor = self.parent().getCurrentEditor()
-        if editor:
-            needle = editor.textCursor().selectedText().replace("\u2029", "\n")
-            if needle:
+        if editor := self.parent().getCurrentEditor():
+            if (
+                needle := editor.textCursor()
+                .selectedText()
+                .replace("\u2029", "\n")
+            ):
                 self._findText.setText(needle)
         # select the find-text
         self.selectFindText()
@@ -504,8 +486,8 @@ class FindReplaceWidget(QtWidgets.QFrame):
         # get editor
         if not editor:
             editor = self.parent().getCurrentEditor()
-            if not editor:
-                return
+        if not editor:
+            return
 
         # find flags
         flags = QtGui.QTextDocument.FindFlags()
@@ -572,7 +554,7 @@ class FindReplaceWidget(QtWidgets.QFrame):
         elif i == 2:
             self.replaceInAllFiles(event)
         else:
-            raise RuntimeError("Unexpected kind of replace %s" % i)
+            raise RuntimeError(f"Unexpected kind of replace {i}")
 
     def replaceOne(self, event=None, wrapAround=True, editor=None):
         """If the currently selected text matches the find string,
@@ -583,8 +565,8 @@ class FindReplaceWidget(QtWidgets.QFrame):
         # get editor
         if not editor:
             editor = self.parent().getCurrentEditor()
-            if not editor:
-                return
+        if not editor:
+            return
 
         # Create a cursor to do the editing
         cursor = editor.textCursor()
@@ -622,8 +604,8 @@ class FindReplaceWidget(QtWidgets.QFrame):
         # get editor
         if not editor:
             editor = self.parent().getCurrentEditor()
-            if not editor:
-                return
+        if not editor:
+            return
 
         # get current position
         originalPosition = editor.textCursor()
@@ -684,9 +666,7 @@ class FileTabWidget(CompactTabWidget):
         if index < 0 or index >= self.count():
             pyzo.main.setMainTitle()  # No open file
 
-        # Remove current item from history
-        currentItem = self.currentItem()
-        if currentItem:
+        if currentItem := self.currentItem():
             currentItem.editor.setTitleInMainWindow()
 
     ## Item management
@@ -936,7 +916,7 @@ class FileTabWidget(CompactTabWidget):
 
             # Update name and tooltip
             if item.dirty:
-                tabBar.setTabToolTip(i, item.filename + " [modified]")
+                tabBar.setTabToolTip(i, f"{item.filename} [modified]")
             else:
                 tabBar.setTabToolTip(i, item.filename)
 
@@ -1048,20 +1028,12 @@ class EditorTabs(QtWidgets.QWidget):
 
     def getCurrentEditor(self):
         """Get the currently active editor."""
-        item = self._tabs.currentItem()
-        if item:
-            return item.editor
-        else:
-            return None
+        return item.editor if (item := self._tabs.currentItem()) else None
 
     def getMainEditor(self):
         """Get the editor that represents the main file, or None if
         there is no main file."""
-        item = self._tabs.mainItem()
-        if item:
-            return item.editor
-        else:
-            return None
+        return item.editor if (item := self._tabs.mainItem()) else None
 
     def __iter__(self):
         tmp = [item.editor for item in self._tabs.items()]
@@ -1080,8 +1052,7 @@ class EditorTabs(QtWidgets.QWidget):
             fname = editor._filename or editor._name
             if not fname:
                 continue
-            linenumbers = editor.breakPoints()
-            if linenumbers:
+            if linenumbers := editor.breakPoints():
                 self._breakPoints[fname] = linenumbers
             else:
                 self._breakPoints.pop(fname, None)
@@ -1127,8 +1098,6 @@ class EditorTabs(QtWidgets.QWidget):
                 self.loadFile(path)
             elif os.path.isdir(path):
                 self.loadDir(path)
-            else:
-                pass
 
     def newFile(self):
         """Create a new (unsaved) file."""
@@ -1160,30 +1129,15 @@ class EditorTabs(QtWidgets.QWidget):
 
         # show dialog
         msg = translate("editorTabs", "Select one or more files to open")
-        filter = "Python (*.py *.pyw);;"
-        filter += "Pyrex (*.pyi *.pyx *.pxd);;"
+        filter = "Python (*.py *.pyw);;" + "Pyrex (*.pyi *.pyx *.pxd);;"
         filter += "C (*.c *.h *.cpp *.c++);;"
         # filter += "Py+Cy+C (*.py *.pyw *.pyi *.pyx *.pxd *.c *.h *.cpp);;"
         filter += "All (*)"
-        if True:
-            filenames = QtWidgets.QFileDialog.getOpenFileNames(
-                self, msg, startdir, filter
-            )
-            if isinstance(filenames, tuple):  # PySide
-                filenames = filenames[0]
-        else:
-            # Example how to preselect files, can be used when the users
-            # opens a file in a project to select all files currently not
-            # loaded.
-            d = QtWidgets.QFileDialog(self, msg, startdir, filter)
-            d.setFileMode(d.ExistingFiles)
-            d.selectFile('"codeparser.py" "editorStack.py"')
-            d.exec_()
-            if d.result():
-                filenames = d.selectedFiles()
-            else:
-                filenames = []
-
+        filenames = QtWidgets.QFileDialog.getOpenFileNames(
+            self, msg, startdir, filter
+        )
+        if isinstance(filenames, tuple):  # PySide
+            filenames = filenames[0]
         # were some selected?
         if not filenames:
             return
@@ -1206,14 +1160,13 @@ class EditorTabs(QtWidgets.QWidget):
 
         # show dialog
         msg = "Select a directory to open"
-        dirname = QtWidgets.QFileDialog.getExistingDirectory(self, msg, startdir)
-
-        # was a dir selected?
-        if not dirname:
+        if dirname := QtWidgets.QFileDialog.getExistingDirectory(
+            self, msg, startdir
+        ):
+            # load
+            self.loadDir(dirname)
+        else:
             return
-
-        # load
-        self.loadDir(dirname)
 
     def loadFile(self, filename, updateTabs=True, ignoreFail=False):
         """Load the specified file.
@@ -1238,7 +1191,7 @@ class EditorTabs(QtWidgets.QWidget):
             item = None
         if item:
             self._tabs.setCurrentItem(item)
-            print("File already open: '{}'".format(filename))
+            print(f"File already open: '{filename}'")
             return item
 
         # create editor
@@ -1335,8 +1288,7 @@ class EditorTabs(QtWidgets.QWidget):
 
         # show dialog
         msg = translate("editorTabs", "Select the file to save to")
-        filter = "Python (*.py *.pyw);;"
-        filter += "Pyrex (*.pyi *.pyx *.pxd);;"
+        filter = "Python (*.py *.pyw);;" + "Pyrex (*.pyi *.pyx *.pxd);;"
         filter += "C (*.c *.h *.cpp);;"
         # filter += "Py+Cy+C (*.py *.pyw *.pyi *.pyx *.pxd *.c *.h *.cpp);;"
         filter += "All (*.*)"
@@ -1350,10 +1302,7 @@ class EditorTabs(QtWidgets.QWidget):
             filename += ".py"
 
         # proceed or cancel
-        if filename:
-            return self.saveFile(editor, filename)
-        else:
-            return False  # Cancel was pressed
+        return self.saveFile(editor, filename) if filename else False
 
     def saveFile(self, editor=None, filename=None):
         """Save the file.
@@ -1398,7 +1347,7 @@ class EditorTabs(QtWidgets.QWidget):
 
         # notify
         # TODO: message concerining line endings
-        print("saved file: {} ({})".format(filename, editor.lineEndingsHumanReadable))
+        print(f"saved file: {filename} ({editor.lineEndingsHumanReadable})")
         self._tabs.updateItems()
 
         # todo: this is where we once detected whether the file being saved was a style file.
@@ -1564,10 +1513,7 @@ class EditorTabs(QtWidgets.QWidget):
                 continue
 
             # Init info
-            info = []
-            # Add filename, line number, and scroll distance
-            info.append(ed._filename)
-            info.append(int(ed.textCursor().position()))
+            info = [ed._filename, int(ed.textCursor().position())]
             info.append(int(ed.verticalScrollBar().value()))
             # Add whether pinned or main file
             if item.pinned:
@@ -1579,7 +1525,7 @@ class EditorTabs(QtWidgets.QWidget):
             state.append(tuple(info))
 
         # Get history
-        history = [item for item in self._tabs._itemHistory]
+        history = list(self._tabs._itemHistory)
         history.reverse()  # Last one is current
         for item in history:
             if isinstance(item, FileItem):
@@ -1608,10 +1554,7 @@ class EditorTabs(QtWidgets.QWidget):
                     if fname in fileItems:
                         self._tabs.setCurrentItem(fileItems[fname])
                 elif fname:
-                    # a file item, create editor-item and store
-                    itm = self.loadFile(fname, ignoreFail=True)
-                    # set position
-                    if itm:
+                    if itm := self.loadFile(fname, ignoreFail=True):
                         fileItems[fname] = itm
                         try:
                             ed = itm.editor
@@ -1627,7 +1570,7 @@ class EditorTabs(QtWidgets.QWidget):
                             if "pinned" in item:
                                 itm._pinned = True
                         except Exception as err:
-                            print("Could not set position for %s" % fname, err)
+                            print(f"Could not set position for {fname}", err)
 
         return len(fileItems) != 0
 

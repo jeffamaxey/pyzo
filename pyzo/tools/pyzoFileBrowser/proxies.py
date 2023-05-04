@@ -55,7 +55,7 @@ class Task:
             params = self._params or {}
             self._result = self.process(proxy, **params)
         except Exception as err:
-            self._error = "Task failed: {}:\n{}".format(self, str(err))
+            self._error = f"Task failed: {self}:\n{str(err)}"
             print(self._error)
 
     def result(self):
@@ -99,7 +99,7 @@ class PathProxy(QtCore.QObject):
         self._finishedTasks = []
 
     def __repr__(self):
-        return '<{} "{}">'.format(self.__class__.__name__, self._path)
+        return f'<{self.__class__.__name__} "{self._path}">'
 
     def path(self):
         """Get the path of this proxy."""
@@ -303,10 +303,8 @@ class BaseFSProxy(threading.Thread):
             try:
                 self._run()
             except Exception as err:
-                if Empty is None or self._lock is None:
-                    pass  # Shutting down ...
-                else:
-                    print("Exception in proxy thread: " + str(err))
+                if Empty is not None and self._lock is not None:
+                    print(f"Exception in proxy thread: {str(err)}")
 
         except Exception:
             pass  # Interpreter is shutting down

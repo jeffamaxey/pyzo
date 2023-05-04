@@ -143,8 +143,7 @@ class Tester(unittest.TestCase):
         # Receive in right order
         count = 0
         while True:
-            sub = yoton.select_sub_channel(sub1, sub2)
-            if sub:
+            if sub := yoton.select_sub_channel(sub1, sub2):
                 i = int(sub.recv())
                 self.assertEqual(i, count)
                 count += 1

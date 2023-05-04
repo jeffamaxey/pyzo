@@ -151,7 +151,7 @@ class RequestServer(threading.Thread):
             else:
                 # Show handling?
                 if self._verbose:
-                    print("handling request from: " + str(addr))
+                    print(f"handling request from: {str(addr)}")
                 # Handle request
                 if self._async:
                     rh = SocketHandler(self, s)
@@ -217,7 +217,7 @@ class RequestServer(threading.Thread):
             self._stop_me = True
 
         # Echo
-        return "Requested: " + request
+        return f"Requested: {request}"
 
 
 class SocketHandler(threading.Thread):

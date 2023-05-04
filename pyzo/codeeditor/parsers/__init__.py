@@ -12,6 +12,7 @@ different languages.
 """
 
 
+
 """ CREATING PARSERS
 
 Making a parser requires these things:
@@ -32,10 +33,7 @@ import sys
 
 from . import tokens
 
-if sys.version_info[0] >= 3:
-    text_type = str
-else:
-    text_type = unicode  # noqa
+text_type = str if sys.version_info[0] >= 3 else unicode
 
 
 class BlockState(object):
@@ -120,7 +118,7 @@ class Parser(object):
 
     def __repr__(self):
         """String representation of the parser."""
-        return '<Parser for "%s">' % self.name()
+        return f'<Parser for "{self.name()}">'
 
     def keywords(self):
         """keywords()
@@ -128,7 +126,7 @@ class Parser(object):
         Get a list of keywords valid for this parser.
 
         """
-        return [k for k in self._keywords]
+        return list(self._keywords)
 
     def filenameExtensions(self):
         """filenameExtensions()
@@ -148,17 +146,17 @@ class Parser(object):
         """
         return self._shebangKeywords.copy()
 
-    def getStyleElementDescriptions(cls):
+    def getStyleElementDescriptions(self):
         """getStyleElementDescriptions()
 
         This method returns a list of the StyleElementDescription
         instances used by this parser.
 
         """
-        descriptions = {}
-        for token in cls.getUsedTokens(cls):
-            descriptions[token.description.key] = token.description
-
+        descriptions = {
+            token.description.key: token.description
+            for token in self.getUsedTokens(self)
+        }
         return list(descriptions.values())
 
     def getUsedTokens(self):
@@ -178,9 +176,12 @@ class Parser(object):
         tokenClasses = []
         for name in mod.__dict__:
             member = mod.__dict__[name]
-            if isinstance(member, type) and issubclass(member, tokens.Token):
-                if member is not tokens.Token:
-                    tokenClasses.append(member)
+            if (
+                isinstance(member, type)
+                and issubclass(member, tokens.Token)
+                and member is not tokens.Token
+            ):
+                tokenClasses.append(member)
 
         # Return as instances
         return [t() for t in tokenClasses]
@@ -196,10 +197,7 @@ class Parser(object):
         # Get first word
         word = text.lstrip().split(" ", 1)[0].rstrip(":")
         # Test
-        if word.lower() in ["todo", "2do", "fixme"]:
-            return True
-        else:
-            return False
+        return word.lower() in ["todo", "2do", "fixme"]
 
 
 ## Import parsers statically

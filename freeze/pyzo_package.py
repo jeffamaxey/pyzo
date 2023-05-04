@@ -7,12 +7,12 @@ import platform
 import subprocess
 
 
-this_dir = os.path.abspath(os.path.dirname(__file__)) + "/"
-dist_dir = this_dir + "dist/"
+this_dir = f"{os.path.abspath(os.path.dirname(__file__))}/"
+dist_dir = f"{this_dir}dist/"
 
 
 with open(os.path.join(this_dir, "..", "pyzo", "__init__.py")) as fh:
-    __version__ = re.search(r"__version__ = \"(.*?)\"", fh.read()).group(1)
+    __version__ = re.search(r"__version__ = \"(.*?)\"", fh.read())[1]
 
 bitness = "32" if sys.maxsize <= 2**32 else "64"
 
@@ -20,11 +20,11 @@ osname = os.getenv("PYZO_OSNAME", "")
 if osname:
     pass
 elif sys.platform.startswith("linux"):
-    osname = "linux_" + platform.machine()
+    osname = f"linux_{platform.machine()}"
 elif sys.platform.startswith("win"):
     osname = f"win{bitness}"
 elif sys.platform.startswith("darwin"):
-    osname = "macos_" + platform.machine()
+    osname = f"macos_{platform.machine()}"
 else:
     raise RuntimeError("Unknown platform")
 
@@ -40,7 +40,7 @@ def package_tar_gz():
     oridir = os.getcwd()
     os.chdir(dist_dir)
     try:
-        tf = tarfile.open(basename + ".tar.gz", "w|gz")
+        tf = tarfile.open(f"{basename}.tar.gz", "w|gz")
         with tf:
             tf.add("pyzo", arcname="pyzo")
     finally:
@@ -54,7 +54,9 @@ def package_zip():
     dirname2 = dirname1
 
     zf = zipfile.ZipFile(
-        os.path.join(dist_dir, basename + ".zip"), "w", compression=zipfile.ZIP_DEFLATED
+        os.path.join(dist_dir, f"{basename}.zip"),
+        "w",
+        compression=zipfile.ZIP_DEFLATED,
     )
     with zf:
         for root, dirs, files in os.walk(os.path.join(dist_dir, dirname1)):
@@ -97,19 +99,23 @@ def package_dmg():
     print("Packing up into DMG ...")
 
     app_dir = "pyzo.app"
-    dmg_file = basename + ".dmg"
+    dmg_file = f"{basename}.dmg"
 
-    cmd = ["hdiutil", "create"]
-    cmd.extend(["-srcfolder", app_dir])
-    cmd.extend(["-volname", "pyzo"])
-    cmd.extend(["-format", "UDZO"])
-    cmd.extend(["-fs", "HFSX"])
-    # cmd.extend(["-uid", "99"])  # who ever is mounting
-    # cmd.extend(["-gid", "99"])  # who ever is mounting
-    cmd.extend(["-mode", "555"])  # readonly
-    cmd.append("-noscrub")
-    cmd.append(dmg_file)
-
+    cmd = [
+        "hdiutil",
+        "create",
+        *["-srcfolder", app_dir],
+        "-volname",
+        "pyzo",
+        "-format",
+        "UDZO",
+        "-fs",
+        "HFSX",
+        "-mode",
+        "555",
+        "-noscrub",
+        dmg_file,
+    ]
     subprocess.check_call(cmd, cwd=dist_dir)
 
 

@@ -315,18 +315,18 @@ pre, code {{background-color: #F2F2F2;}}
 def get_title_text(objectName, h_class="", h_repr=""):
     title_text = "<p style='background-color:#def;'>"
     if h_class == "~python_keyword~":
-        title_text += "<b>Keyword:</b> {}".format(objectName)
+        title_text += f"<b>Keyword:</b> {objectName}"
     elif h_class == "~python_operator~":
-        title_text += "<b>Operator:</b> {}".format(objectName)
+        title_text += f"<b>Operator:</b> {objectName}"
     elif h_class == "":
-        title_text += "<b>Unknown construct:</b> {}".format(objectName)
+        title_text += f"<b>Unknown construct:</b> {objectName}"
     else:
-        title_text += "<b>Object:</b> {}".format(objectName)
-        title_text += ", <b>class:</b> {}".format(h_class)
+        title_text += f"<b>Object:</b> {objectName}"
+        title_text += f", <b>class:</b> {h_class}"
         if h_repr:
             if len(h_repr) > 40:
-                h_repr = h_repr[:37] + "..."
-            title_text += ", <b>repr:</b> {}".format(h_repr)
+                h_repr = f"{h_repr[:37]}..."
+            title_text += f", <b>repr:</b> {h_repr}"
 
     # Finish
     title_text += "</p>\n"
@@ -435,11 +435,7 @@ class PyzoInteractiveHelp(QtWidgets.QWidget):
         if not hasattr(config, "smartNewlines"):
             config.smartNewlines = True
         if not hasattr(config, "fontSize"):
-            if sys.platform == "darwin":
-                config.fontSize = 12
-            else:
-                config.fontSize = 10
-
+            config.fontSize = 12 if sys.platform == "darwin" else 10
         # Create callbacks
         self._text.returnPressed.connect(self.queryDoc)
         self._printBut.clicked.connect(self.printDoc)
@@ -578,17 +574,17 @@ class PyzoInteractiveHelp(QtWidgets.QWidget):
             if name in operators:
                 shell.processLine(
                     'print("""{}""")'.format(
-                        "Help on operator: " + name + "\n\n" + operatorsHelp
+                        f"Help on operator: {name}" + "\n\n" + operatorsHelp
                     )
                 )
             elif name in keywordsHelp:
                 shell.processLine(
                     'print("""{}""")'.format(
-                        "Help on keyword: " + name + "\n\n" + keywordsHelp[name]
+                        f"Help on keyword: {name}" + "\n\n" + keywordsHelp[name]
                     )
                 )
             else:
-                shell.processLine("print({}.__doc__)".format(name))
+                shell.processLine(f"print({name}.__doc__)")
 
     def queryDoc(self, addToHistory=True):
         """Query the doc for the text in the line edit."""
@@ -622,10 +618,10 @@ class PyzoInteractiveHelp(QtWidgets.QWidget):
             print("Introspect-queryDoc-exception: ", future.exception())
             return
         else:
-            response = future.result()
-            if not response:
+            if response := future.result():
+                self.displayResponse(response)
+            else:
                 return
-            self.displayResponse(response)
 
     def displayResponse(self, response):
         try:
@@ -655,23 +651,22 @@ class PyzoInteractiveHelp(QtWidgets.QWidget):
                 # Make sure the signature is separated from the rest using at
                 # least two newlines
                 header = ""
-                if True:
-                    # Get short version of objectName
-                    name = objectName.split(".")[-1]
-                    # Is the signature in the docstring?
-                    docs = h_text.replace("\n", "|")
-                    tmp = re.search("[a-zA-z_\.]*?" + name + "\(.*?\)", docs)
-                    if tmp and tmp.span(0)[0] < 5:
-                        header = tmp.group(0)
-                        h_text = h_text[len(header) :].lstrip(":").lstrip()
-                        header = header.replace("|", "")
-                        # h_text = header + '\n\n' + h_text
-                    elif h_text.startswith(objectName) or h_text.startswith(name):
-                        header, sep, docs = h_text.partition("\n")
-                        # h_text = header + '\n\n' + docs
-                        h_text = docs
-                    elif h_fun is not None and h_fun != "":
-                        header = h_fun
+                # Get short version of objectName
+                name = objectName.split(".")[-1]
+                # Is the signature in the docstring?
+                docs = h_text.replace("\n", "|")
+                tmp = re.search("[a-zA-z_\.]*?" + name + "\(.*?\)", docs)
+                if tmp and tmp.span(0)[0] < 5:
+                    header = tmp[0]
+                    h_text = h_text[len(header) :].lstrip(":").lstrip()
+                    header = header.replace("|", "")
+                                    # h_text = header + '\n\n' + h_text
+                elif h_text.startswith(objectName) or h_text.startswith(name):
+                    header, sep, docs = h_text.partition("\n")
+                    # h_text = header + '\n\n' + docs
+                    h_text = docs
+                elif h_fun is not None and h_fun != "":
+                    header = h_fun
 
                 # Parse the text as rest/numpy like docstring
                 h_text = self.smartFormat(h_text)
@@ -689,14 +684,14 @@ class PyzoInteractiveHelp(QtWidgets.QWidget):
             # Compile rich text
             text += get_title_text(objectName, h_class, h_repr)
             if not self._config.smartNewlines and h_fun is not None and h_fun != "":
-                text += "<p><b>Signature:</b> {}</p>".format(h_fun)
-            text += "{}<br />".format(h_text)
+                text += f"<p><b>Signature:</b> {h_fun}</p>"
+            text += f"{h_text}<br />"
 
         except Exception:
             try:
                 text += get_title_text(objectName, h_class, h_repr)
                 if h_fun is not None and h_fun != "":
-                    text += "<p><b>Signature:</b> {}</p>".format(h_fun)
+                    text += f"<p><b>Signature:</b> {h_fun}</p>"
                 text += h_text
             except Exception:
                 text = response
@@ -720,9 +715,7 @@ class PyzoInteractiveHelp(QtWidgets.QWidget):
 
         # Remove minimal indentation
         lines2 = [lines[0]]
-        for line in lines[1:]:
-            lines2.append(line[minIndent:])
-
+        lines2.extend(line[minIndent:] for line in lines[1:])
         # Prepare
         prevLine_ = ""
         prevIndent = 0
@@ -761,34 +754,23 @@ class PyzoInteractiveHelp(QtWidgets.QWidget):
                 isHeader = False
                 if ("---" in line or "===" in line) and indent == prevIndent:
                     # Header
-                    lines3[-1] = "<b>" + lines3[-1] + "</b>"
+                    lines3[-1] = f"<b>{lines3[-1]}</b>"
                     line = ""  #'<br /> ' + line
                     isHeader = True
                     inExample = False
                     # Special case, examples
-                    if prevLine_.lower().startswith("example"):
-                        inExample = True
-                    else:
-                        inExample = False
+                    inExample = bool(prevLine_.lower().startswith("example"))
                 elif " : " in line:
                     tmp = line.split(" : ", 1)
-                    line = "<br /><u>" + tmp[0] + "</u> : " + tmp[1]
+                    line = f"<br /><u>{tmp[0]}</u> : {tmp[1]}"
                 elif line_.startswith("* "):
-                    line = "<br />&nbsp;&nbsp;&nbsp;&#8226;" + line_[2:]
+                    line = f"<br />&nbsp;&nbsp;&nbsp;&#8226;{line_[2:]}"
                 elif prevWasHeader or inExample or forceNewline:
-                    line = "<br />" + line
+                    line = f"<br />{line}"
                 else:
-                    if prevLine_:
-                        line = " " + line_
-                    else:
-                        line = line_
-
+                    line = f" {line_}" if prevLine_ else line_
                 # Force next line to be on a new line if using a colon
-                if " : " in line:
-                    forceNewline = True
-                else:
-                    forceNewline = False
-
+                forceNewline = " : " in line
                 # Prepare for next line
                 prevLine_ = line_
                 prevIndent = indent

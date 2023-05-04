@@ -59,10 +59,9 @@ def _filterFileByName(basename, filters):
             if fnmatch.fnmatch(basename, filter[1:]):
                 return False
             default = True
+        elif fnmatch.fnmatch(basename, filter):
+            return True
         else:
-            # If the file name matches a filter not starting with!, show it
-            if fnmatch.fnmatch(basename, filter):
-                return True
             default = False
 
     return default
@@ -172,7 +171,7 @@ def createItemsFun(browser, parent):
         # Create temporary dir items
         if searchFilter["subDirs"]:
             for path in dirs:
-                if not os.path.basename(path) in (".git", ".hg"):
+                if os.path.basename(path) not in (".git", ".hg"):
                     item = TemporaryDirItem(parent, fsProxy.dir(path))
 
     # Return number of files added
@@ -253,7 +252,7 @@ class BrowserItem(QtWidgets.QTreeWidgetItem):
 
     def onErrored(self, err):
         self.clear()
-        self._createDummyItem("Error: " + err)
+        self._createDummyItem(f"Error: {err}")
 
     def onTaskFinished(self, task):
         # Getting the result raises exception if an error occured.
@@ -346,7 +345,7 @@ class FileItem(BrowserItem):
     def setFileIcon(self):
         # Create dummy file in pyzo user dir
         dummy_filename = op.join(
-            cleanpath(pyzo.appDataDir), "dummyFiles", "dummy" + ext(self.path())
+            cleanpath(pyzo.appDataDir), "dummyFiles", f"dummy{ext(self.path())}"
         )
         # Create file?
         if not op.isfile(dummy_filename):
@@ -377,11 +376,9 @@ class FileItem(BrowserItem):
             pyzo.editors.getCurrentEditor().setFocus()
 
     def onExpanded(self):
-        if self._mode == "normal":
-            # Create task to retrieve high level structure
-            if self.path().lower().endswith(".py"):
-                self._proxy.pushTask(tasks.DocstringTask())
-                self._proxy.pushTask(tasks.PeekTask())
+        if self._mode == "normal" and self.path().lower().endswith(".py"):
+            self._proxy.pushTask(tasks.DocstringTask())
+            self._proxy.pushTask(tasks.PeekTask())
 
     def onCollapsed(self):
         if self._mode == "normal":
@@ -408,19 +405,8 @@ class FileItem(BrowserItem):
             self.clear()  # Docstring task is done *before* peek task
             if result:
                 DocstringItem(self, result)
-        #         if isinstance(task, tasks.DocstringTask):
-        #             result = task.result()
-        #             if result:
-        #                 #self.setToolTip(0, result)
-        #                 # Show tooltip *now* if mouse is still over this item
-        #                 tree = self.treeWidget()
-        #                 pos = tree.mapFromGlobal(QtGui.QCursor.pos())
-        #                 if tree.itemAt(pos) is self:
-        #                     QtWidgets.QToolTip.showText(QtGui.QCursor.pos(), result)
         elif isinstance(task, tasks.PeekTask):
-            result = task.result()
-            # self.clear()  # Cleared when docstring task result is received
-            if result:
+            if result := task.result():
                 for r in result:
                     SubFileItem(self, *r)
             else:
@@ -466,7 +452,7 @@ class DocstringItem(QtWidgets.QTreeWidgetItem):
         if len(shortText) < len(self._docstring):
             shortText += "..."
         # Set short version now
-        self.setText(0, "doc: " + shortText)
+        self.setText(0, f"doc: {shortText}")
         # Long version is the tooltip
         self.setToolTip(0, docstring)
 
@@ -631,13 +617,11 @@ class Tree(QtWidgets.QTreeWidget):
             self._proxy.deleted.disconnect(self.onDeleted)
             self._proxy.errored.disconnect(self.onErrored)
             self.destroyed.disconnect(self._proxy.cancel)
-        # Create new proxy
-        if True:
-            self._proxy = self.parent()._fsProxy.dir(path)
-            self._proxy.changed.connect(self.onChanged)
-            self._proxy.deleted.connect(self.onDeleted)
-            self._proxy.errored.connect(self.onErrored)
-            self.destroyed.connect(self._proxy.cancel)
+        self._proxy = self.parent()._fsProxy.dir(path)
+        self._proxy.changed.connect(self.onChanged)
+        self._proxy.deleted.connect(self.onDeleted)
+        self._proxy.errored.connect(self.onErrored)
+        self.destroyed.connect(self._proxy.cancel)
         # Activate the proxy, we'll get a call at onChanged() asap.
         if path.lower() == MOUNTS.lower():
             self.clear()
@@ -707,7 +691,7 @@ class Tree(QtWidgets.QTreeWidget):
 
     def onErrored(self, err="..."):
         self.clear()
-        ErrorItem(self, "Error: " + err)
+        ErrorItem(self, f"Error: {err}")
 
     def onDeleted(self):
         self.setPathUp()
@@ -748,12 +732,11 @@ class Tree(QtWidgets.QTreeWidget):
             items = self.findItems(
                 op.basename(self._selectedPath), QtCore.Qt.MatchExactly, 0
             )
-            items = [
+            if items := [
                 item
                 for item in items
                 if op.normcase(item.path()) == op.normcase(self._selectedPath)
-            ]
-            if items:
+            ]:
                 self.setCurrentItem(items[0])
         # Restore scrolling
         self.verticalScrollBar().setValue(self._selectedScrolling)
@@ -826,10 +809,9 @@ class PopupMenu(pyzo.core.menu.Menu):
                     None,
                     self._showInFinder,
                 )
-            if True:
-                self.addItem(
-                    translate("filebrowser", "Copy path"), None, self._copyPath
-                )
+            self.addItem(
+                translate("filebrowser", "Copy path"), None, self._copyPath
+            )
             self.addSeparator()
 
         # Create items for file management
@@ -889,7 +871,7 @@ class PopupMenu(pyzo.core.menu.Menu):
             msg = "No shell to run code in. "
             m = QtWidgets.QMessageBox(self)
             m.setWindowTitle(translate("menu dialog", "Could not run"))
-            m.setText("Could not run " + filename + ":\n\n" + msg)
+            m.setText(f"Could not run {filename}" + ":\n\n" + msg)
             m.setIcon(m.Warning)
             m.exec_()
 
@@ -902,7 +884,7 @@ class PopupMenu(pyzo.core.menu.Menu):
             msg = "No shell to run notebook in. "
             m = QtWidgets.QMessageBox(self)
             m.setWindowTitle(translate("menu dialog", "Could not run notebook"))
-            m.setText("Could not run " + filename + ":\n\n" + msg)
+            m.setText(f"Could not run {filename}" + ":\n\n" + msg)
             m.setIcon(m.Warning)
             m.exec_()
 
@@ -962,7 +944,7 @@ class PopupMenu(pyzo.core.menu.Menu):
         else:
             title = translate("filebrowser", "Duplicate")
             label = translate("filebrowser", "Give the name for the new file")
-            filename = "Copy of " + filename
+            filename = f"Copy of {filename}"
 
         # Ask for new filename
         s = QtWidgets.QInputDialog.getText(

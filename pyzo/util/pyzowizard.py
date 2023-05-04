@@ -22,10 +22,7 @@ from pyzo.util._locale import LANGUAGES, LANGUAGE_SYNONYMS, setLanguage
 
 def retranslate(t):
     """To allow retranslating after selecting the language."""
-    if hasattr(t, "original"):
-        return translate("wizard", t.original)
-    else:
-        return t
+    return translate("wizard", t.original) if hasattr(t, "original") else t
 
 
 class PyzoWizard(QtWidgets.QWizard):
@@ -87,7 +84,7 @@ class PyzoWizard(QtWidgets.QWizard):
 
         # Go to start page
         if startPage is not None:
-            for i in range(startPage):
+            for _ in range(startPage):
                 self.next()
 
 

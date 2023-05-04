@@ -33,11 +33,7 @@ if __name__ == "__main__":
     path = os.path.dirname(os.path.abspath(__file__))
     path = os.path.split(path)[0]
 
-    # Init files
-    files = []
-    # Get files in root
-    for fname in os.listdir(path):
-        files.append(fname)
+    files = list(os.listdir(path))
     # Get files in channels
     for fname in os.listdir(os.path.join(path, "channels")):
         fname = os.path.join("channels", fname)

@@ -38,6 +38,7 @@ reqp-introspect (OBJECT): To query information from the kernel (and for interrup
 
 """
 
+
 # This file is executed with the active directory one up from this file.
 
 import os
@@ -74,7 +75,7 @@ ct._stat_breakpoints = yoton.StateChannel(ct, "stat-breakpoints", yoton.OBJECT)
 # Important to do this *before* replacing the stdout etc, because if an
 # error occurs here, it will be printed in the shell.
 port = int(sys.argv[1])
-ct.connect("localhost:" + str(port), timeout=1.0)
+ct.connect(f"localhost:{port}", timeout=1.0)
 
 # Create file objects for stdin, stdout, stderr
 sys.stdin = yoton.FileWrapper(ct._ctrl_command, echo=ct._strm_echo, isatty=True)

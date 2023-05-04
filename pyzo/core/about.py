@@ -105,9 +105,9 @@ class AboutDialog(QtWidgets.QDialog):
         qtWrapperVersion = qt.PYSIDE_VERSION or qt.PYQT_VERSION
         # Insert information texts
         if paths.is_frozen():
-            versionText = pyzo.__version__ + " (binary)"
+            versionText = f"{pyzo.__version__} (binary)"
         else:
-            versionText = pyzo.__version__ + " (source)"
+            versionText = f"{pyzo.__version__} (source)"
         aboutText = aboutText.format(
             "Pyzo - Python to the people!",
             versionText,

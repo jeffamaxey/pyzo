@@ -117,8 +117,7 @@ class KernelInfo(ssdf.Struct):
                 s = ssdf.loads(info)
             else:
                 raise ValueError(
-                    "Kernel info should be a string or ssdf struct, not %s"
-                    % str(type(info))
+                    f"Kernel info should be a string or ssdf struct, not {str(type(info))}"
                 )
             # Inject values
             for key in s:
@@ -141,17 +140,13 @@ def getCommandFromKernelInfo(info, port):
 
     # Correct path when it contains spaces
     if exe.count(" ") and exe[0] != '"':
-        exe = '"{}"'.format(exe)
+        exe = f'"{exe}"'
 
     # Get start script
     startScript = os.path.join(pyzo.pyzoDir, "pyzokernel", "start.py")
-    startScript = '"{}"'.format(startScript)
+    startScript = f'"{startScript}"'
 
-    # Build command
-    command = exe + " " + startScript + " " + str(port)
-
-    # Done
-    return command
+    return f"{exe} {startScript} {str(port)}"
 
 
 def getEnvFromKernelInfo(info):
@@ -205,9 +200,11 @@ def getEnvFromKernelInfo(info):
     if getattr(sys, "frozen", False):
         frozen_path = os.path.normpath(sys.prefix).lower()
         for key, val in list(env.items()):
-            if key.startswith(("QT_", "QML2_")):
-                if frozen_path in os.path.normpath(val).lower():
-                    env.pop(key, None)
+            if (
+                key.startswith(("QT_", "QML2_"))
+                and frozen_path in os.path.normpath(val).lower()
+            ):
+                env.pop(key, None)
         env["PATH"] = os.pathsep.join(
             x
             for x in os.getenv("PATH", "").split(os.pathsep)
@@ -375,11 +372,7 @@ class KernelBroker:
         # Create channels
         self._create_channels()
 
-        # Create info dict
-        info = {}
-        for key in self._info:
-            info[key] = self._info[key]
-
+        info = {key: self._info[key] for key in self._info}
         # Send info stuff so that the kernel has access to the information
         self._stat_startup.send(info)
 
@@ -409,7 +402,7 @@ class KernelBroker:
             except (IOError, subprocess.SubprocessError):
                 pass  # Do not use cmd
             else:
-                command = 'cmd /c "{}"'.format(command)
+                command = f'cmd /c "{command}"'
 
         # Start process
         self._process = subprocess.Popen(
@@ -450,7 +443,7 @@ class KernelBroker:
         the ide can connect.
 
         """
-        c = self._context.bind(address + ":PYZO+256", max_tries=256, name="ide")
+        c = self._context.bind(f"{address}:PYZO+256", max_tries=256, name="ide")
         return c.port1
 
     ## Callbacks
@@ -556,9 +549,9 @@ class KernelBroker:
 
         # Get some important status info
         hasProcess = self._process is not None
-        hasKernelConnection = bool(self._kernelCon and self._kernelCon.is_connected)
         hasClients = False
         if self._context:
+            hasKernelConnection = bool(self._kernelCon and self._kernelCon.is_connected)
             hasClients = self._context.connection_count > int(hasKernelConnection)
 
         # Should we clean the whole thing up?
@@ -597,8 +590,6 @@ class KernelBroker:
                     self._commandTerminate()
                 elif msg.startswith("RESTART"):
                     self._commandRestart(msg)
-                else:
-                    pass  # Message is not for us
 
     def _commandInterrupt(self):
         if self._process is None:
@@ -619,12 +610,7 @@ class KernelBroker:
         # If it wont, we will act in a second or so.
         if self._process is None:
             self._strm_broker.send("Cannot terminate: process is dead.\n")
-        elif self.isTerminating():
-            # The user gave kill command while the kill process
-            # is running. We could do an immediate kill now,
-            # or we let the terminate process run its course.
-            pass
-        else:
+        elif not self.isTerminating():
             self.terminate("by user")
 
     def _commandRestart(self, msg):
@@ -641,9 +627,7 @@ class KernelBroker:
         # Restart now, wait, or initiate termination procedure?
         if self._process is None:
             self.startKernel()
-        elif self.isTerminating():
-            pass  # Already terminating
-        else:
+        elif not self.isTerminating():
             self.terminate("for restart")
 
 
@@ -702,9 +686,7 @@ class KernelTerminator:
         elif action == "KILL":
             # Get pid and signal
             pid = self._broker._kernelCon.pid2
-            sigkill = signal.SIGTERM
-            if hasattr(signal, "SIGKILL"):
-                sigkill = signal.SIGKILL
+            sigkill = signal.SIGKILL if hasattr(signal, "SIGKILL") else signal.SIGTERM
             # Kill
             if hasattr(os, "kill"):
                 os.kill(pid, sigkill)
@@ -727,7 +709,7 @@ class KernelTerminator:
         actionMsg = D.get(self._prev_action, "stopped for unknown reason")
 
         # Compile stop-string
-        return "{} {} {}.".format(what, actionMsg, self._reason)
+        return f"{what} {actionMsg} {self._reason}."
 
 
 class StreamReader(threading.Thread):
@@ -836,7 +818,7 @@ class Kernelmanager:
         When this function returns, all kernels will be terminated.
 
         """
-        for kernel in [kernel for kernel in self._kernels]:
+        for kernel in list(self._kernels):
 
             # Try closing the process gently: by closing stdin
             terminator = KernelTerminator(kernel, "for closing down")

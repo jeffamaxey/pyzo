@@ -13,12 +13,12 @@ c4 = yoton.Context(verbosity)
 
 # Connect in a row
 addr = "localhost:whop"
-c1.bind(addr + "+1")
-c2.connect(addr + "+1")
-c2.bind(addr + "+2")
-c3.connect(addr + "+2")
-c3.bind(addr + "+3")
-c4.connect(addr + "+3")
+c1.bind(f"{addr}+1")
+c2.connect(f"{addr}+1")
+c2.bind(f"{addr}+2")
+c3.connect(f"{addr}+2")
+c3.bind(f"{addr}+3")
+c4.connect(f"{addr}+3")
 
 # Create pub at first and sub at last
 p = yoton.PubChannel(c1, "hop")

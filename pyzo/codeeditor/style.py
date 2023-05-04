@@ -38,7 +38,7 @@ class StyleElementDescription:
         self._defaultFormat = StyleFormat(defaultFormat)
 
     def __repr__(self):
-        return '<"%s": "%s">' % (self.name, self.defaultFormat)
+        return f'<"{self.name}": "{self.defaultFormat}">'
 
     @property
     def name(self):
@@ -111,25 +111,21 @@ class StyleFormat:
 
     def __str__(self):
         """Get a (cleaned up) string representation of this style format."""
-        parts = []
-        for key in self._parts:
-            parts.append("%s:%s" % (key, self._parts[key]))
+        parts = [f"{key}:{self._parts[key]}" for key in self._parts]
         return ", ".join(parts)
 
     def __repr__(self):
-        return '<StyleFormat "%s">' % str(self)
+        return f'<StyleFormat "{str(self)}">'
 
     def __getitem__(self, key):
         try:
             return self._parts[key]
         except KeyError:
-            raise KeyError("Invalid part key " + key + " for style format.")
+            raise KeyError(f"Invalid part key {key} for style format.")
 
     def __iter__(self):
         """Yields a series of tuples (key, val)."""
-        parts = []
-        for key in self._parts:
-            parts.append((key, self._parts[key]))
+        parts = [(key, self._parts[key]) for key in self._parts]
         return parts.__iter__()
 
     def update(self, format):
@@ -147,7 +143,7 @@ class StyleFormat:
             format = str(format)
 
         # Split on ',' and ',', ignore spaces
-        styleParts = [p for p in format.replace("=", ":").replace(";", ",").split(",")]
+        styleParts = list(format.replace("=", ":").replace(";", ",").split(","))
 
         for stylePart in styleParts:
 
@@ -155,7 +151,7 @@ class StyleFormat:
             # e.g. fore:#xxx, bold:yes, underline:no
             if ":" not in stylePart:
                 if stylePart.startswith("#"):
-                    stylePart = "foreandback:" + stylePart
+                    stylePart = f"foreandback:{stylePart}"
                 else:
                     stylePart += ":yes"
 
@@ -192,19 +188,13 @@ class StyleFormat:
     @property
     def bold(self):
         if self._bold is None:
-            if self._getValueSafe("bold") in ["yes", "true"]:
-                self._bold = True
-            else:
-                self._bold = False
+            self._bold = self._getValueSafe("bold") in ["yes", "true"]
         return self._bold
 
     @property
     def italic(self):
         if self._italic is None:
-            if self._getValueSafe("italic") in ["yes", "true"]:
-                self._italic = True
-            else:
-                self._italic = False
+            self._italic = self._getValueSafe("italic") in ["yes", "true"]
         return self._italic
 
     @property
@@ -225,14 +215,21 @@ class StyleFormat:
     def linestyle(self):
         if self._linestyle is None:
             val = self._getValueSafe("linestyle")
-            if val in ["yes", "true"]:
+            if val in ["yes", "true"] or val not in [
+                "dotted",
+                "dot",
+                "dots",
+                "dotline",
+                "dashed",
+                "dash",
+                "dashes",
+                "dashline",
+            ]:
                 self._linestyle = Qt.SolidLine
             elif val in ["dotted", "dot", "dots", "dotline"]:
                 self._linestyle = Qt.DotLine
-            elif val in ["dashed", "dash", "dashes", "dashline"]:
-                self._linestyle = Qt.DashLine
             else:
-                self._linestyle = Qt.SolidLine  # default to solid
+                self._linestyle = Qt.DashLine
         return self._linestyle
 
     @property

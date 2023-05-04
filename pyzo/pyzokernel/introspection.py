@@ -30,46 +30,37 @@ class PyzoIntrospector(yoton.RepChannel):
 
         # Get namespace
         NS1 = sys._pyzoInterpreter.locals
-        NS2 = sys._pyzoInterpreter.globals
-        if not NS2:
-            NS = NS1
-        else:
+        if NS2 := sys._pyzoInterpreter.globals:
             NS = NS2.copy()
             NS.update(NS1)
 
-        # Look up a name?
+        else:
+            NS = NS1
         if not name:
             return NS
-        else:
-            try:
-                # Get object
-                ob = eval(name, None, NS)
+        try:
+            # Get object
+            ob = eval(name, None, NS)
 
                 # Get namespace for this object
-                if isinstance(ob, dict):
-                    NS = {}
-                    for el in ob:
-                        NS["[" + repr(el) + "]"] = ob[el]
-                elif isinstance(ob, (list, tuple)):
-                    NS = {}
-                    count = -1
-                    for el in ob:
-                        count += 1
-                        NS["[%i]" % count] = el
-                else:
-                    keys = dir(ob)
-                    NS = {}
-                    for key in keys:
-                        try:
-                            NS[key] = getattr(ob, key)
-                        except Exception:
-                            NS[key] = "<unknown>"
+            if isinstance(ob, dict):
+                NS = {f"[{repr(el)}]": ob[el] for el in ob}
+            elif isinstance(ob, (list, tuple)):
+                NS = {"[%i]" % count: el for count, el in enumerate(ob)}
+            else:
+                keys = dir(ob)
+                NS = {}
+                for key in keys:
+                    try:
+                        NS[key] = getattr(ob, key)
+                    except Exception:
+                        NS[key] = "<unknown>"
 
-                # Done
-                return NS
+            # Done
+            return NS
 
-            except Exception:
-                return {}
+        except Exception:
+            return {}
 
     def _getSignature(self, objectName):
         """_getSignature(objectName)
@@ -91,37 +82,35 @@ class PyzoIntrospector(yoton.RepChannel):
 
         # find out what kind of function, or if a function at all!
         NS = self._getNameSpace()
-        fun1 = eval("inspect.isbuiltin(%s)" % (objectName), None, NS)
-        fun2 = eval("inspect.isfunction(%s)" % (objectName), None, NS)
-        fun3 = eval("inspect.ismethod(%s)" % (objectName), None, NS)
+        fun1 = eval(f"inspect.isbuiltin({objectName})", None, NS)
+        fun2 = eval(f"inspect.isfunction({objectName})", None, NS)
+        fun3 = eval(f"inspect.ismethod({objectName})", None, NS)
         fun4 = False
         fun5 = False
         if not (fun1 or fun2 or fun3):
             # Maybe it's a class with an init?
-            if eval("hasattr(%s,'__init__')" % (objectName), None, NS):
+            if eval(f"hasattr({objectName},'__init__')", None, NS):
                 objectName += ".__init__"
-                fun4 = eval("inspect.ismethod(%s)" % (objectName), None, NS)
-            #  Or a callable object?
-            elif eval("hasattr(%s,'__call__')" % (objectName), None, NS):
+                fun4 = eval(f"inspect.ismethod({objectName})", None, NS)
+            elif eval(f"hasattr({objectName},'__call__')", None, NS):
                 objectName += ".__call__"
-                fun5 = eval("inspect.ismethod(%s)" % (objectName), None, NS)
+                fun5 = eval(f"inspect.ismethod({objectName})", None, NS)
 
         sigs = ""
-        if True:
             # the first line in the docstring is usually the signature
-            tmp = eval("%s.__doc__" % (objectNames[-1]), {}, NS)
+        tmp = eval(f"{objectNames[-1]}.__doc__", {}, NS)
+        sigs = ""
+        if tmp:
+            sigs = tmp.splitlines()[0].strip()
+        # Test if doc has signature
+        hasSig = False
+        for name in objectNames:  # list.append -> L.apend(objec) -- blabla
+            name += "("
+            if name in sigs:
+                hasSig = True
+        # If not a valid signature, do not bother ...
+        if (not hasSig) or (sigs.count("(") != sigs.count(")")):
             sigs = ""
-            if tmp:
-                sigs = tmp.splitlines()[0].strip()
-            # Test if doc has signature
-            hasSig = False
-            for name in objectNames:  # list.append -> L.apend(objec) -- blabla
-                name += "("
-                if name in sigs:
-                    hasSig = True
-            # If not a valid signature, do not bother ...
-            if (not hasSig) or (sigs.count("(") != sigs.count(")")):
-                sigs = ""
 
         if fun1 or fun2 or fun3 or fun4 or fun5:
 
@@ -133,7 +122,7 @@ class PyzoIntrospector(yoton.RepChannel):
                 kind = "method"
             elif fun4:
                 kind = "class"
-            elif fun5:
+            else:
                 kind = "callable"
 
             if not sigs:
@@ -142,15 +131,11 @@ class PyzoIntrospector(yoton.RepChannel):
                 funname = objectName.split(".")[-1]
 
                 try:
-                    tmp = eval(
-                        "inspect.signature(%s)" % (objectName), None, NS
-                    )  # py3.3
+                    tmp = eval(f"inspect.signature({objectName})", None, NS)
                     sigs = funname + str(tmp)
                 except Exception:
                     try:
-                        tmp = eval(
-                            "inspect.getargspec(%s)" % (objectName), None, NS
-                        )  # py2
+                        tmp = eval(f"inspect.getargspec({objectName})", None, NS)
                     except Exception:  # the above fails on 2.4 (+?) for builtins
                         tmp = None
                         kind = ""
@@ -167,16 +152,16 @@ class PyzoIntrospector(yoton.RepChannel):
                         for i in range(len(args) - fun4):
                             arg = args.pop()
                             if i < len(defaults):
-                                args2.insert(0, "%s=%s" % (arg, defaults[i]))
+                                args2.insert(0, f"{arg}={defaults[i]}")
                             else:
                                 args2.insert(0, arg)
                         # append varargs and kwargs
                         if varargs:
-                            args2.append("*" + varargs)
+                            args2.append(f"*{varargs}")
                         if varkw:
-                            args2.append("**" + varkw)
+                            args2.append(f"**{varkw}")
                         # append the lot to our  string
-                        sigs = "%s(%s)" % (funname, ", ".join(args2))
+                        sigs = f'{funname}({", ".join(args2)})'
 
         elif sigs:
             kind = "function"
@@ -204,7 +189,7 @@ class PyzoIntrospector(yoton.RepChannel):
 
         # Obtain all attributes of the class
         try:
-            command = "dir(%s.__class__)" % (objectName)
+            command = f"dir({objectName}.__class__)"
             d = eval(command, {}, NS)
         except Exception:
             pass
@@ -213,7 +198,7 @@ class PyzoIntrospector(yoton.RepChannel):
 
         # Obtain instance attributes
         try:
-            command = "%s.__dict__.keys()" % (objectName)
+            command = f"{objectName}.__dict__.keys()"
             d = eval(command, {}, NS)
         except Exception:
             pass
@@ -223,7 +208,7 @@ class PyzoIntrospector(yoton.RepChannel):
         # That should be enough, but in case __dir__ is overloaded,
         # query that as well
         try:
-            command = "dir(%s)" % (objectName)
+            command = f"dir({objectName})"
             d = eval(command, {}, NS)
         except Exception:
             pass
@@ -267,50 +252,46 @@ class PyzoIntrospector(yoton.RepChannel):
                         values_repr = ""
                         if hasattr(val, "flat"):
                             for el in val.flat:
-                                values_repr += ", " + repr(el)
+                                values_repr += f", {repr(el)}"
                                 if len(values_repr) > 70:
-                                    values_repr = values_repr[:67] + ", …"
+                                    values_repr = f"{values_repr[:67]}, …"
                                     break
-                        repres = "<array %s %s: %s>" % (
-                            tmp,
-                            val.dtype.name,
-                            values_repr,
-                        )
+                        repres = f"<array {tmp} {val.dtype.name}: {values_repr}>"
                     elif val.size:
                         tmp = str(float(val))
                         if "int" in val.dtype.name:
                             tmp = str(int(val))
-                        repres = "<array scalar %s (%s)>" % (val.dtype.name, tmp)
+                        repres = f"<array scalar {val.dtype.name} ({tmp})>"
                     else:
-                        repres = "<array empty %s>" % (val.dtype.name)
+                        repres = f"<array empty {val.dtype.name}>"
                 elif kind == "list":
                     values_repr = ""
                     for el in val:
-                        values_repr += ", " + repr(el)
+                        values_repr += f", {repr(el)}"
                         if len(values_repr) > 70:
-                            values_repr = values_repr[:67] + ", …"
+                            values_repr = f"{values_repr[:67]}, …"
                             break
                     repres = "<%i-element list: %s>" % (len(val), values_repr)
                 elif kind == "tuple":
                     values_repr = ""
                     for el in val:
-                        values_repr += ", " + repr(el)
+                        values_repr += f", {repr(el)}"
                         if len(values_repr) > 70:
-                            values_repr = values_repr[:67] + ", …"
+                            values_repr = f"{values_repr[:67]}, …"
                             break
                     repres = "<%i-element tuple: %s>" % (len(val), values_repr)
                 elif kind == "dict":
                     values_repr = ""
                     for k, v in val.items():
-                        values_repr += ", " + repr(k) + ": " + repr(v)
+                        values_repr += f", {repr(k)}: {repr(v)}"
                         if len(values_repr) > 70:
-                            values_repr = values_repr[:67] + ", …"
+                            values_repr = f"{values_repr[:67]}, …"
                             break
                     repres = "<%i-item dict: %s>" % (len(val), values_repr)
                 else:
                     repres = repr(val)
                     if len(repres) > 80:
-                        repres = repres[:77] + "…"
+                        repres = f"{repres[:77]}…"
                 # Store
                 tmp = (name, typeName, kind, repres)
                 names.append(tmp)
@@ -358,7 +339,7 @@ class PyzoIntrospector(yoton.RepChannel):
             h_text = ""
             # Try using the class (for properties)
             try:
-                className = eval("%s.__class__.__name__" % (objectName), {}, NS)
+                className = eval(f"{objectName}.__class__.__name__", {}, NS)
                 if "." in objectName:
                     tmp = objectName.rsplit(".", 1)
                     tmp[1] += "."
@@ -370,19 +351,18 @@ class PyzoIntrospector(yoton.RepChannel):
                     "builtin_function_or_method",
                     "function",
                 ]:
-                    cmd = "%s.__class__.%s__doc__"
-                    h_text = eval(cmd % (tmp[0], tmp[1]), {}, NS)
+                    h_text = eval(f"{tmp[0]}.__class__.{tmp[1]}__doc__", {}, NS)
             except Exception:
                 pass
 
             # Normal doc
             if not h_text:
-                h_text = eval("%s.__doc__" % (objectName), {}, NS)
+                h_text = eval(f"{objectName}.__doc__", {}, NS)
 
             # collect more data
-            h_repr = eval("repr(%s)" % (objectName), {}, NS)
+            h_repr = eval(f"repr({objectName})", {}, NS)
             try:
-                h_class = eval("%s.__class__.__name__" % (objectName), {}, NS)
+                h_class = eval(f"{objectName}.__class__.__name__", {}, NS)
             except Exception:
                 h_class = "unknown"
 
@@ -398,7 +378,7 @@ class PyzoIntrospector(yoton.RepChannel):
 
             # cut repr if too long
             if len(h_repr) > 200:
-                h_repr = h_repr[:200] + "..."
+                h_repr = f"{h_repr[:200]}..."
             # replace newlines so we can separates the different parts
             h_repr = h_repr.replace("\n", "\r")
 
@@ -429,7 +409,7 @@ class PyzoIntrospector(yoton.RepChannel):
             # here globals is None, so we can look into sys, time, etc...
             return eval(command, None, NS)
         except Exception:
-            return "Error evaluating: " + command
+            return f"Error evaluating: {command}"
 
     def interrupt(self, command=None):
         """interrupt()

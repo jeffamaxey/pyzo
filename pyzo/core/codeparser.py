@@ -12,22 +12,19 @@ structure of a source file in for example a tree widget.
 
 """
 
+
 # TODO: replace this module, get data from the syntax highlighter in the code editor
 
 import time, threading, re
 import pyzo
 
 
-# Define regular expression patterns
-classPattern = r"^\s*"  # Optional whitespace
-classPattern += r"(cp?def\s+)?"  # Cython preamble + whitespace
+classPattern = r"^\s*" + r"(cp?def\s+)?"
 classPattern += r"class\s+"  # The class keyword + whitespace
 classPattern += r"([a-zA-Z_][a-zA-Z_0-9]*)\s*"  # The NAME + optional whitespace
 classPattern += r"(\(.*?\))?"  # The superclass(es)
 classPattern += r"\s*:"  # Optional whitespace and the colon
-#
-defPattern = r"^\s*"  # Optional whitespace
-defPattern += r"(async )?"  # Optional async keyword
+defPattern = r"^\s*" + r"(async )?"
 defPattern += r"(cp?)?def\s+"  # The Cython preamble, def keyword and whitespace
 defPattern += r"([a-zA-Z_][\*a-zA-Z_0-9]*\s+)?"  # Optional Cython return type
 defPattern += r"([a-zA-Z_][a-zA-Z_0-9]*)\s*"  # The NAME + optional whitespace
@@ -143,10 +140,7 @@ class Parser(threading.Thread):
             # prepare for next round
             if curitem and curitem.indent < index:
                 items = curitem.children
-                if curitem.type == "class":
-                    curIsClass = True
-                else:
-                    curIsClass = False
+                curIsClass = curitem.type == "class"
             else:
                 items = []
 
@@ -174,17 +168,18 @@ class Parser(threading.Thread):
         if not item:
             item = self._getFictiveItem(name, "class", editor, handleSelf)
             if item:
-                for subItem in item.children:
-                    if subItem.name == "__init__" and subItem.type == "def":
-                        item = subItem
-                        break
-                else:
-                    item = None
-
+                item = next(
+                    (
+                        subItem
+                        for subItem in item.children
+                        if subItem.name == "__init__" and subItem.type == "def"
+                    ),
+                    None,
+                )
         # Process or return None if there was no item
         if item:
             nameParts = name.split(".")
-            return "{}({})".format(nameParts[-1], item.sig)
+            return f"{nameParts[-1]}({item.sig})"
         else:
             return None
 
@@ -235,8 +230,7 @@ class Parser(threading.Thread):
 
         # Try if the first part represents a class instance
         if handleSelf:
-            item = self._getFictiveCurrentClass(editor, nameParts[0])
-            if item:
+            if item := self._getFictiveCurrentClass(editor, nameParts[0]):
                 nameParts[0] = item.name
 
         # Init
@@ -290,22 +284,16 @@ class Parser(threading.Thread):
         while items:
             curitem = None
             for item in items:
-                # check if this is the one only last one remains
-                if item.linenr <= linenr:
-                    if not item.linenr2 > linenr:
-                        continue
-                    curitem = item
-                    if item.type == "def" and item.selfname == selfname:
-                        theclass = item.parent
-                else:
+                if item.linenr > linenr:
                     break
 
+                if not item.linenr2 > linenr:
+                    continue
+                curitem = item
+                if item.type == "def" and item.selfname == selfname:
+                    theclass = item.parent
             # prepare for next round
-            if curitem and curitem.indent < index:
-                items = curitem.children
-            else:
-                items = []
-
+            items = curitem.children if curitem and curitem.indent < index else []
         # return
         return theclass
 
@@ -455,13 +443,13 @@ class Parser(threading.Thread):
                 if classResult:
                     foundSomething = True
                     # Get name
-                    name = classResult.group(2)
+                    name = classResult[2]
                     item = FictiveObject("class", i, indent, name)
                     appendToStructure(item)
                     item.supers = []
                     item.members = []
                     # Get inheritance
-                    supers = classResult.group(3)
+                    supers = classResult[3]
                     if supers:
                         supers = supers[1:-1].split(",")
                         supers = [tmp.strip() for tmp in supers]
@@ -473,16 +461,16 @@ class Parser(threading.Thread):
                 multiLine = line
                 for ii in range(1, 16):
                     if i + ii < len(lines):
-                        multiLine += " " + lines[i + ii].strip()
+                        multiLine += f" {lines[i + ii].strip()}"
                 # Get result
                 defResult = re.search(defPattern, multiLine)
                 if defResult:
                     # Get name
-                    name = defResult.group(4)
+                    name = defResult[4]
                     item = FictiveObject("def", i, indent, name)
                     appendToStructure(item)
                     item.selfname = None  # will be filled in if a valid method
-                    item.sig = defResult.group(5)
+                    item.sig = defResult[5]
                     # is it a method? -> add method to attr and find selfname
                     if item.parent.type == "class":
                         item.parent.members.append(name)
@@ -527,7 +515,7 @@ class Parser(threading.Thread):
 
             elif line.count("="):
                 if lastObject[0].type == "def" and lastObject[0].selfname:
-                    selfname = lastObject[0].selfname + "."
+                    selfname = f"{lastObject[0].selfname}."
                     line = line.partition("=")[0]
                     if line.count(selfname):
                         # A lot of ifs here. If we got here, the line is part of
@@ -584,11 +572,7 @@ class Parser(threading.Thread):
                 root.children.insert(0, leaf)
                 leaf.parent = root
                 continue
-            if ob2 is None:
-                ob2parent = root
-            else:
-                ob2parent = ob2.parent
-
+            ob2parent = root if ob2 is None else ob2.parent
             # get the object IN which to insert it: ob1
             sibling = None
             while 1:
@@ -649,7 +633,7 @@ def IsValidName(name):
     if not name:
         return False
     name = name.lower()
-    if name[0] not in namechars[0:-10]:
+    if name[0] not in namechars[:-10]:
         return False
     tmp = map(lambda x: x not in namechars, name[2:])
     return sum(tmp) == 0
@@ -658,11 +642,7 @@ def IsValidName(name):
 def ParseImport(names):
     for part in names.split(","):
         i1 = part.find(" as ")
-        if i1 > 0:
-            name = part[i1 + 3 :].strip()
-        else:
-            name = part.strip()
-        yield name
+        yield part[i1 + 3 :].strip() if i1 > 0 else part.strip()
 
 
 def findString(text, s, i):
@@ -715,15 +695,10 @@ def _findString(text, s, i):
             elif prev != "\\":
                 if inString == c:
                     inString = ""  # exit string
-                else:
-                    pass  # the other quote can savely be used inside this string
         prev = c
 
     # If we are in a string, this match is false ...
-    if inString or isComment:
-        return -i2  # indicate failure and where to continue
-    else:
-        return i2  # all's right
+    return -i2 if inString or isComment else i2
 
 
 def washMultilineStrings(text):
@@ -738,33 +713,30 @@ def washMultilineStrings(text):
         # Detect start of a multiline comment (there are two versions)
         i1 = findString(text, s1, i)
         i2 = findString(text, s2, i)
-        # Stop if nothing found ...
-        if i1 == -1 and i2 == -1:
-            break
-        else:
-            # Make no result be very large
-            if i1 == -1:
-                i1 = 2**60
+        if i1 == -1:
             if i2 == -1:
-                i2 = 2**60
-            # Find end of the multiline comment
-            if i1 < i2:
-                i3 = i1 + 3
-                i4 = text.find(s1, i3)
-            else:
-                i3 = i2 + 3
-                i4 = text.find(s2, i3)
-            # No end found -> take all text, unclosed string!
-            if i4 == -1:
-                i4 = 2**32
-            # Leave only the first two quotes of the start of the comment
-            i3 -= 1
-            i4 += 3
-            # Replace all non-newline chars
-            tmp = re.sub(r"\S", " ", text[i3:i4])
-            text = text[:i3] + tmp + text[i3 + len(tmp) :]
-            # Prepare for next round
-            i = i4 + 1
+                break
+            i1 = 2**60
+        if i2 == -1:
+            i2 = 2**60
+        # Find end of the multiline comment
+        if i1 < i2:
+            i3 = i1 + 3
+            i4 = text.find(s1, i3)
+        else:
+            i3 = i2 + 3
+            i4 = text.find(s2, i3)
+        # No end found -> take all text, unclosed string!
+        if i4 == -1:
+            i4 = 2**32
+        # Leave only the first two quotes of the start of the comment
+        i3 -= 1
+        i4 += 3
+        # Replace all non-newline chars
+        tmp = re.sub(r"\S", " ", text[i3:i4])
+        text = text[:i3] + tmp + text[i3 + len(tmp) :]
+        # Prepare for next round
+        i = i4 + 1
     return text
 
 

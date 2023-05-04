@@ -46,19 +46,18 @@ class TextReshaper:
         except StopIteration:
             self._flush()
 
-        return [line for line in self._lines2]
+        return list(self._lines2)
 
     def popText(self):
         """Get all text from the output (i.e. lines joined with newline)."""
         return "\n".join(self.popLines())
 
     def _prefixString(self):
-        if self._pendingPrefix is not None:
-            prefix = self._pendingPrefix
-            self._pendingPrefix = None
-            return prefix
-        else:
+        if self._pendingPrefix is None:
             return self._currentPrefix or ""
+        prefix = self._pendingPrefix
+        self._pendingPrefix = None
+        return prefix
 
     def _addWordToBuffer(self, word):
         self._wordBuffer.append(word)
@@ -102,8 +101,8 @@ class TextReshaper:
             self._flush()
             indent = len(line) - len(strippedline1)
             linePrefix = line[:indent]
-            self._pendingPrefix = linePrefix + "* "
-            self._currentPrefix = linePrefix + "  "
+            self._pendingPrefix = f"{linePrefix}* "
+            self._currentPrefix = f"{linePrefix}  "
         else:
             # Hey, an actual line! Determine prefix
             indent = len(line) - len(strippedline1)

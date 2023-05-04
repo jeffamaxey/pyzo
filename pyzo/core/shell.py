@@ -89,11 +89,7 @@ def finishKernelInfo(info, scriptFile=None):
     info = ssdf.copy(info)
 
     # Set scriptFile (if '', the kernel will run in interactive mode)
-    if scriptFile:
-        info.scriptFile = scriptFile
-    else:
-        info.scriptFile = ""
-
+    info.scriptFile = scriptFile if scriptFile else ""
     # If the file browser is active, and has the check box
     #'add path to Python path' set, set the PROJECTPATH variable
     fileBrowser = pyzo.toolManager.getTool("pyzofilebrowser")
@@ -164,9 +160,7 @@ class ShellHighlighter(Highlighter):
             )
 
             self.setCurrentBlockState(0)
-            if specialinput:
-                pass  # Let the kernel decide formatting
-            else:
+            if not specialinput:
                 tokens = list(parser.parseLine(line, previousState))
                 bd.tokens = tokens
                 for token in tokens:
@@ -361,17 +355,14 @@ class BaseShell(BaseTextCtrl):
         piece = before + after
 
         # Check if it looks like a filename, quit if it does not
-        if len(piece) < 4:
-            return
-        elif not ("/" in piece or "\\" in piece):
+        if len(piece) < 4 or "/" not in piece and "\\" not in piece:
             return
         #
         if sys.platform.startswith("win"):
             if piece[1] != ":":
                 return
-        else:
-            if not piece.startswith("/"):
-                return
+        elif not piece.startswith("/"):
+            return
         #
         filename = piece
 
@@ -385,17 +376,15 @@ class BaseShell(BaseTextCtrl):
             if part in ("line", "linenr", "lineno"):
                 try:
                     linenr = int(parts[i + 1])
-                except IndexError:
+                except (IndexError, ValueError):
                     pass  # no more parts
-                except ValueError:
-                    pass  # not an integer
                 else:
                     break
 
         # Try again IPython style
         # IPython shows a few lines with the active line indicated by an arrow
         if linenr is None:
-            for i in range(4):
+            for _ in range(4):
                 cursor.movePosition(cursor.NextBlock, cursor.MoveAnchor)
                 cursor.movePosition(cursor.EndOfBlock, cursor.KeepAnchor)
                 line = cursor.selectedText()
@@ -407,10 +396,8 @@ class BaseShell(BaseTextCtrl):
                 if parts[0] in ("->", "-->", "--->", "---->", "----->"):
                     try:
                         linenr = int(parts[1].strip())
-                    except IndexError:
+                    except (IndexError, ValueError):
                         pass  # too few parts
-                    except ValueError:
-                        pass  # not an integer
                     else:
                         break
 
@@ -451,10 +438,7 @@ class BaseShell(BaseTextCtrl):
 
         if event.key() in [Qt.Key_Return, Qt.Key_Enter]:
 
-            # First check if autocompletion triggered
-            if self.potentiallyAutoComplete(event):
-                return
-            else:
+            if not self.potentiallyAutoComplete(event):
                 # Enter: execute line
                 # Remove calltip and autocomp if shown
                 self.autocompleteCancel()
@@ -465,12 +449,13 @@ class BaseShell(BaseTextCtrl):
 
                 # process
                 self.processLine()
-                return
-
-        if event.key() == Qt.Key_Escape:
-            # Escape clears command
-            if not (self.autocompleteActive() or self.calltipActive()):
-                self.clearCommand()
+            return
+        if (
+            event.key() == Qt.Key_Escape
+            and not self.autocompleteActive()
+            and not self.calltipActive()
+        ):
+            self.clearCommand()
 
         if event.key() == Qt.Key_Home:
             # Home goes to the prompt.
@@ -515,9 +500,7 @@ class BaseShell(BaseTextCtrl):
                 self._historyStep += 1
             else:  # Key_Down
                 self._historyStep -= 1
-                if self._historyStep < 1:
-                    self._historyStep = 1
-
+                self._historyStep = max(self._historyStep, 1)
             # find the command
             c = pyzo.command_history.find_starting_with(
                 self._historyNeedle, self._historyStep
@@ -553,10 +536,7 @@ class BaseShell(BaseTextCtrl):
         """Reimplement cut to only copy if part of the selected text
         is not at the prompt."""
 
-        if self.isReadOnly():
-            return self.copy()
-        else:
-            return BaseTextCtrl.cut(self)
+        return self.copy() if self.isReadOnly() else BaseTextCtrl.cut(self)
 
     # def copy(self): # no overload needed
 
@@ -583,23 +563,19 @@ class BaseShell(BaseTextCtrl):
         The shell supports only a single line but the text may contain multiple
         lines. We insert at the editLine only the first non-empty line of the text
         """
-        if event.mimeData().hasText():
-            text = event.mimeData().text()
-            insertText = ""
-            for line in text.splitlines():
-                if line.strip():
-                    insertText = line
-                    break
+        if not event.mimeData().hasText():
+            return
+        text = event.mimeData().text()
+        insertText = next((line for line in text.splitlines() if line.strip()), "")
+        # Move the cursor to the position indicated by the drop location, but
+        # ensure it is at the edit line
+        self.setTextCursor(self.cursorForPosition(event.pos()))
+        self.ensureCursorAtEditLine()
 
-            # Move the cursor to the position indicated by the drop location, but
-            # ensure it is at the edit line
-            self.setTextCursor(self.cursorForPosition(event.pos()))
-            self.ensureCursorAtEditLine()
-
-            # Now insert the text
-            cursor = self.textCursor()
-            cursor.insertText(insertText)
-            self.setFocus()
+        # Now insert the text
+        cursor = self.textCursor()
+        cursor.insertText(insertText)
+        self.setFocus()
 
     ## Basic commands to control the shell
 
@@ -637,7 +613,7 @@ class BaseShell(BaseTextCtrl):
         while i > 0:
             i = text.rfind("\b", 0, i)
             if i > 0 and text[i - 1] != "\b":
-                text = text[0 : i - 1] + text[i + 1 :]
+                text = text[:i - 1] + text[i + 1 :]
 
         # Strip the backspaces at the start
         text2 = text.lstrip("\b")
@@ -901,23 +877,15 @@ class BaseShell(BaseTextCtrl):
                     format.setFontItalic(True)  # Italic
                 elif param == 4:
                     format.setFontUnderline(True)  # Underline
-                #
                 elif param == 22:
                     format.setFontWeight(50)  # Not bold or faint
                 elif param == 23:
                     format.setFontItalic(False)  # Not italic
                 elif param == 24:
                     format.setFontUnderline(False)  # Not underline
-                #
                 elif 30 <= param <= 37:  # Set foreground color
                     clr = CLRS[param - 30]
                     format.setForeground(QtGui.QColor(clr))
-                elif 40 <= param <= 47:
-                    pass  # Cannot set background text in QPlainTextEdit
-                #
-                else:
-                    pass  # Not supported
-
         else:
             # At the end, process the remaining text
             text = text[i0:]
@@ -983,7 +951,7 @@ class BaseShell(BaseTextCtrl):
         Should be overridden.
         """
         # this is a stupid simulation version
-        self.write("you executed: " + command + "\n")
+        self.write(f"you executed: {command}" + "\n")
         self.write(">>> ", prompt=2)
 
 
@@ -1170,9 +1138,8 @@ class PythonShell(BaseShell):
         """Processes a calltip request using a CallTipObject instance."""
 
         # Try using buffer first (not if we're not the requester)
-        if self is cto.textCtrl:
-            if cto.tryUsingBuffer():
-                return
+        if self is cto.textCtrl and cto.tryUsingBuffer():
+            return
 
         # Clear buffer to prevent doing a second request
         # and store cto to see whether the response is still wanted.
@@ -1221,9 +1188,8 @@ class PythonShell(BaseShell):
         """Processes an autocomp request using an AutoCompObject instance."""
 
         # Try using buffer first (not if we're not the requester)
-        if self is aco.textCtrl:
-            if aco.tryUsingBuffer():
-                return
+        if self is aco.textCtrl and aco.tryUsingBuffer():
+            return
 
         # Include builtins and keywords?
         if not aco.name:
@@ -1263,10 +1229,7 @@ class PythonShell(BaseShell):
             aco.textCtrl.autocompleteCancel()
             return
 
-        # Add result to the list
-        foundNames = []
-        if response is not None:
-            foundNames = response
+        foundNames = response if response is not None else []
         aco.addNames(foundNames)
 
         # Process list
@@ -1274,12 +1237,11 @@ class PythonShell(BaseShell):
             # No names found for the requested name. This means
             # it does not exist, let's try to import it
             importNames, importLines = pyzo.parser.getFictiveImports(editor1)
-            baseName = aco.nameInImportNames(importNames)
-            if baseName:
+            if baseName := aco.nameInImportNames(importNames):
                 line = importLines[baseName].strip()
                 if line not in self._importAttempts:
                     # Do import
-                    self.processLine(line + " # auto-import")
+                    self.processLine(f"{line} # auto-import")
                     self._importAttempts.append(line)
                     # Wait a barely noticable time to increase the chances
                     # That the import is complete when we repost the request.
@@ -1290,12 +1252,10 @@ class PythonShell(BaseShell):
                     future = self._request.signature(aco.name)
                     future.add_done_callback(self._processAutoComp_response)
                     future.aco = aco
+        elif self._currentACO is aco:
+            aco.finish()
         else:
-            # If still required, show list, otherwise only store result
-            if self._currentACO is aco:
-                aco.finish()
-            else:
-                aco.setBuffer()
+            aco.setBuffer()
 
     ## Methods for executing code
 
@@ -1428,10 +1388,7 @@ class PythonShell(BaseShell):
             N = 256
             M, buffer = M[:N], M[N:]
             # Buffer the rest
-            if buffer:
-                self._write_buffer = sub, buffer
-            else:
-                self._write_buffer = None
+            self._write_buffer = (sub, buffer) if buffer else None
             # Get how to deal with prompt
             prompt = 0
             if sub is self._strm_echo:
@@ -1449,9 +1406,7 @@ class PythonShell(BaseShell):
             # Write
             self.write("".join(M), prompt, color)
 
-        # Do any actions?
-        action = self._strm_action.recv(False)
-        if action:
+        if action := self._strm_action.recv(False):
             if action == "cls":
                 self.clearScreen()
             elif action.startswith("open "):
@@ -1467,7 +1422,7 @@ class PythonShell(BaseShell):
                 if editor and linenr:
                     editor._editor.gotoLine(linenr)
             else:
-                print("Unkown action: %s" % action)
+                print(f"Unkown action: {action}")
 
         # ----- status
 

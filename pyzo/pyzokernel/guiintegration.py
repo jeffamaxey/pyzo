@@ -244,10 +244,10 @@ class App_asyncio(App_base):
             # First calling stop and then run_forever() process all pending events.
             # We do this multiple times to work around the limited frequence that this
             # method gets called, but we need to use a private attribute for that :/
-            for i in range(20):
+            for _ in range(20):
                 loop.stop()
                 loop._original_run_forever()
-                if len(getattr(loop, "_ready", ())) == 0:
+                if not getattr(loop, "_ready", ()):
                     break
 
     def quit(self):
@@ -452,6 +452,8 @@ class App_qt(App_base):
         if not hasattr(QtGui, "real_QApplication"):
             QtGui.real_QApplication = QtGui.QApplication
 
+
+
         class QApplication_hijacked(QtGui.QApplication):
             """QApplication_hijacked(*args, **kwargs)
 
@@ -486,9 +488,10 @@ class App_qt(App_base):
                         continue
                     # Skip attributes that we already have
                     val = getattr(cls, key)
-                    if hasattr(theApp.__class__, key):
-                        if hash(val) == hash(getattr(theApp.__class__, key)):
-                            continue
+                    if hasattr(theApp.__class__, key) and hash(val) == hash(
+                        getattr(theApp.__class__, key)
+                    ):
+                        continue
                     # Make method?
                     if hasattr(val, "__call__"):
                         if hasattr(val, "im_func"):
@@ -529,7 +532,7 @@ class App_qt(App_base):
                     if name.startswith("<"):  # most probably "<module>"
                         break
                     else:
-                        __main__.__dict__[name + "_locals"] = frame.f_locals
+                        __main__.__dict__[f"{name}_locals"] = frame.f_locals
 
                 # Tell interpreter to ignore any system exits
                 sys._pyzoInterpreter.ignore_sys_exit = True
@@ -544,6 +547,9 @@ class App_qt(App_base):
             def quit(self, *args, **kwargs):
                 """Do not quit if Qt app quits."""
                 pass
+
+            # Instantiate application object
+
 
         # Instantiate application object
         self.app = QApplication_hijacked([""])

@@ -15,6 +15,7 @@ uses a set of pluggable tools to help the programmer in various ways.
 """
 
 
+
 ## The editor
 """
 The editor (this window) is where your code is located; it is the central
@@ -109,7 +110,7 @@ directory may also be inserted in sys.path.
 
 a = 3
 b = 4
-print("The answer is " + str(a + b))
+print(f"The answer is {str(a + b)}")
 
 
 ## The menu

@@ -34,9 +34,11 @@ except ImportError:
 
 def isidentifier(s):
     # http://stackoverflow.com/questions/2544972/
-    if not isinstance(s, str):
-        return False
-    return re.match(r"^\w+$", s, re.UNICODE) and re.match(r"^[0-9]", s) is None
+    return (
+        re.match(r"^\w+$", s, re.UNICODE) and re.match(r"^[0-9]", s) is None
+        if isinstance(s, str)
+        else False
+    )
 
 
 class Dict(_dict):
@@ -56,12 +58,9 @@ class Dict(_dict):
             else:
                 nonidentifier_items.append("(%r, %r)" % (key, val))
         if nonidentifier_items:
-            return "Dict([%s], %s)" % (
-                ", ".join(nonidentifier_items),
-                ", ".join(identifier_items),
-            )
+            return f'Dict([{", ".join(nonidentifier_items)}], {", ".join(identifier_items)})'
         else:
-            return "Dict(%s)" % (", ".join(identifier_items))
+            return f'Dict({", ".join(identifier_items)})'
 
     def __getattribute__(self, key):
         try:
@@ -198,8 +197,7 @@ def saves(d):
     if not (isstruct(d) or isinstance(d, dict)):
         raise ValueError("ssdf.saves() expects a dict.")
     writer = ReaderWriter()
-    text = writer.save(d)
-    return text
+    return writer.save(d)
 
 
 def save(file, d):
@@ -252,9 +250,7 @@ class ReaderWriter(object):
                 print("ZON: Ignoring wrong indentation at %i" % linenr)
                 indent = prev_indent
 
-            # Split name and data using a regular expression
-            m = re.search("^\w+? *?=", line2)
-            if m:
+            if m := re.search("^\w+? *?=", line2):
                 i = m.end(0)
                 name = line2[: i - 1].strip()
                 data = line2[i:].lstrip()
@@ -290,11 +286,12 @@ class ReaderWriter(object):
 
         pyver = "%i.%i.%i" % sys.version_info[:3]
         ct = time.asctime()
-        lines = []
-        lines.append("# -*- coding: utf-8 -*-")
-        lines.append("# This Zoof Object Notation (ZON) file was")
-        lines.append("# created from Python %s on %s.\n" % (pyver, ct))
-        lines.append("")
+        lines = [
+            "# -*- coding: utf-8 -*-",
+            "# This Zoof Object Notation (ZON) file was",
+            "# created from Python %s on %s.\n" % (pyver, ct),
+            "",
+        ]
         lines.extend(self.from_dict(d, -2)[1:])
 
         return "\r\n".join(lines)
@@ -322,19 +319,19 @@ class ReaderWriter(object):
             data = "Null"
             tmp = repr(value)
             if len(tmp) > 64:
-                tmp = tmp[:64] + "..."
+                tmp = f"{tmp[:64]}..."
             if name is not None:
-                print("ZON: %s is unknown object: %s" % (name, tmp))
+                print(f"ZON: {name} is unknown object: {tmp}")
             else:
-                print("ZON: unknown object: %s" % tmp)
+                print(f"ZON: unknown object: {tmp}")
 
         # Finish line (or first line)
         if isinstance(data, string_types):
             data = [data]
         if name:
-            data[0] = "%s%s = %s" % (" " * indent, name, data[0])
+            data[0] = f'{" " * indent}{name} = {data[0]}'
         else:
-            data[0] = "%s%s" % (" " * indent, data[0])
+            data[0] = f'{" " * indent}{data[0]}'
 
         return data
 
@@ -388,20 +385,18 @@ class ReaderWriter(object):
         value = value.replace("\r", "\\r")
         value = value.replace("\x0b", "\\x0b").replace("\x0c", "\\x0c")
         value = value.replace("'", "\\'")
-        return "'" + value + "'"
+        return f"'{value}'"
 
     def to_unicode(self, data, linenr):
         # Encode double slashes
         line = data.replace("\\\\", "0x07")  # temp
 
-        # Find string using a regular expression
-        m = re.search("'.*?[^\\\\]'|''", line)
-        if not m:
+        if m := re.search("'.*?[^\\\\]'|''", line):
+            line = m[0][1:-1]
+
+        else:
             print("ZON: string not ended correctly on line %i." % linenr)
             return None  # return not-a-string
-        else:
-            line = m.group(0)[1:-1]
-
         # Decode stuff
         line = line.replace("\\n", "\n")
         line = line.replace("\\r", "\r")
@@ -437,56 +432,48 @@ class ReaderWriter(object):
                 isSmallList = False
             subdata = self.from_object(None, element, 0)  # No indent
             subItems.extend(subdata)
-        isSmallList = isSmallList and len(subItems) < 256
-
-        # Return data
-        if isSmallList:
-            return "[%s]" % (", ".join(subItems))
-        else:
-            data = ["list:"]
-            ind = " " * (indent + 2)
-            for item in subItems:
-                data.append(ind + item)
-            return data
+        if isSmallList := isSmallList and len(subItems) < 256:
+            return f'[{", ".join(subItems)}]'
+        data = ["list:"]
+        ind = " " * (indent + 2)
+        data.extend(ind + item for item in subItems)
+        return data
 
     def to_list(self, data, linenr):
         value = []
-        if data[0] == "l":  # list:
-            return list()
+        if data[0] == "l":
+            return []
+        i0 = 1
+        pieces = []
+        inString = False
+        escapeThis = False
+        line = data
+        for i in range(1, len(line)):
+            if inString:
+                # Detect how to get out
+                if escapeThis:
+                    escapeThis = False
+                    continue
+                elif line[i] == "\\":
+                    escapeThis = True
+                elif line[i] == "'":
+                    inString = False
+            elif line[i] == "'":
+                inString = True
+            elif line[i] == ",":
+                pieces.append(line[i0:i])
+                i0 = i + 1
+            elif line[i] == "]":
+                piece = line[i0:i]
+                if piece.strip():  # Do not add if empty
+                    pieces.append(piece)
+                break
         else:
-            i0 = 1
-            pieces = []
-            inString = False
-            escapeThis = False
-            line = data
-            for i in range(1, len(line)):
-                if inString:
-                    # Detect how to get out
-                    if escapeThis:
-                        escapeThis = False
-                        continue
-                    elif line[i] == "\\":
-                        escapeThis = True
-                    elif line[i] == "'":
-                        inString = False
-                else:
-                    # Detect going in a string, break, or end
-                    if line[i] == "'":
-                        inString = True
-                    elif line[i] == ",":
-                        pieces.append(line[i0:i])
-                        i0 = i + 1
-                    elif line[i] == "]":
-                        piece = line[i0:i]
-                        if piece.strip():  # Do not add if empty
-                            pieces.append(piece)
-                        break
-            else:
-                print("ZON: short list not closed right on line %i." % linenr)
+            print("ZON: short list not closed right on line %i." % linenr)
 
-            # Cut in pieces and process each piece
-            value = []
-            for piece in pieces:
-                v = self.to_object(piece, linenr)
-                value.append(v)
-            return value
+        # Cut in pieces and process each piece
+        value = []
+        for piece in pieces:
+            v = self.to_object(piece, linenr)
+            value.append(v)
+        return value
